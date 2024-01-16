@@ -1,38 +1,34 @@
-import React, { FC, useState, useEffect } from 'react';
-import * as $rdf from 'rdflib';
+import React, { FC, useState, useEffect, useContext } from 'react';
+import Schema from '@/components/schema';
+import SchemaContext from '@/SchemaContext';
+import SchemaPrototype from "@comunica/query-sparql";
 
 type DropdownComponentProps = {
-    store?: $rdf.IndexedFormula;
     selectedClass: string | undefined;
     setSelectedClass: React.Dispatch<React.SetStateAction<string | undefined>>;
   };
 
-const DropdownComponent: FC<DropdownComponentProps> = ({store, selectedClass, setSelectedClass}) => {
+const DropdownComponent: FC<DropdownComponentProps> = ({selectedClass, setSelectedClass}) => {
 
-    let classes: $rdf.NamedNode[] = [];
-    let classLabels: {[uri: string]: string} = {};
+  const [classes, setClasses] = useState<SchemaPrototype[]>([]);
+  const {schema} = useContext(SchemaContext);
 
-  if (store) {
-    classes = store
-      .each(null, $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class"))
-      .map((classTerm) => classTerm as $rdf.NamedNode);
-    classes.forEach((classNode) => {
-        const labelTerm = store.any(classNode, $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#label"));
-        if (labelTerm && labelTerm.value) {
-            classLabels[classNode.value] = labelTerm.value;
-        }
-    });
-  }
-    
+  useEffect(() => {
+    let classes: SchemaPrototype[] = [];
+    if (schema instanceof Schema) {
+      setClasses(schema.getClasses());
+    }
+}, [schema]);
+
       return (
         <div>
           <div>
             <label>Classes:</label>
             <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
               <option value="">Select a class...</option>
-              {classes.map((classNode, index) => (
-                <option key={index} value={classNode.value}>
-                  {classLabels[classNode.value] || classNode.value}
+              {classes.map((cls, index) => (
+                <option key={index} value={cls.$id}>
+                  {cls.name || cls.$id}
                 </option>
               ))}
             </select>

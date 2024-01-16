@@ -1,50 +1,172 @@
-import React, { useEffect, useRef } from 'react';
-//import * as joint from 'jointjs';
+import React, { useEffect, useRef, useContext } from 'react';
 import { dia, ui, shapes } from '@clientio/rappid';
-import * as $rdf from 'rdflib';
-import * as rdfHelpers from '@/components/rdfHelpers';
+import Schema from '@/components/schema';
+import SchemaContext from '@/SchemaContext';
+import SchemaPrototype from "@comunica/query-sparql";
+import { ClassDisk } from '@/components/shapes/ClassDisk';
 import { createDiskAndLink } from '@/components/graph';
+import { forEach } from 'lodash';
 
-function removeTooltip() {
-    const oldTooltip = document.getElementById("tooltip");
-        if (oldTooltip) {
-            oldTooltip.remove();
-        }
+export function displayContextMenu(paper: dia.Paper, clickedDisk: ClassDisk, evt: any, schema: any, expandedClasses: Set<string>) {  
+  // Get the bounding box of the clicked disk in the paper coordinate system
+  const bbox = clickedDisk.getBBox();
+  // Get the paper client rect
+  const paperRect = paper.el.getBoundingClientRect();
+  // Calculate the position of the context toolbar
+  const toolbarPosition = {
+      x: paperRect.left + bbox.x + bbox.width,
+      y: paperRect.top + bbox.y
+  };
+
+  var ct = new ui.ContextToolbar({
+    tools: [
+      { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
+      { action: 'expandRelations', content: 'Expand/Hide Relations' },
+      { action: 'removeClass', content: 'Remove Class' }
+    ],
+    target: toolbarPosition,  // Positioning the toolbar based on event coordinates
+    position: 'right',  // Adjust as needed to position the toolbar to the right of the clicked ClassDisk
+    anchor: 'left',  // Adjust as needed to anchor the toolbar to the left side
+    vertical: true  // This should stack the toolbar items vertically
+  });
+
+  ct.on('action:expandSubclasses', function() {
+    const clickedClass = clickedDisk.prop('classData');
+    if (clickedClass && !expandedClasses.has(clickedClass.$id)) {
+      expandedClasses.add(clickedClass.$id);
+      const clickedDiskId = clickedDisk.id;  // Get id from clickedDisk
+      const subclasses = schema?.getSubclassesForClass(clickedClass.$id)
+      console.log(subclasses)
+      Array.from(subclasses || new Set())?.forEach((subclass, index) => {
+        const propertyLabel = "rdfs:subClassOf"
+        const newClass = schema?.getClassById(subclass)
+        createDiskAndLink(
+            paper.model,
+            newClass,
+            propertyLabel,
+            'incoming',
+            clickedDisk.findView(paper),
+            index,
+            clickedDiskId
+        );
+        schema.lazyLoadData(subclass)
+        .then(() => {
+            // update loading state
+            schema.loadingStates[subclass] = "loaded";
+        })
+        .catch(error => {
+            console.error('Error lazy loading data:', error);
+        });
+      });
+    }
+  });
+
+  ct.on('action:expandRelations', function() {
+    const clickedClass = clickedDisk.prop('classData');
+    if (clickedClass) {
+        const outgoingRelations = schema.getOutgoingPropertiesForClass(clickedClass.$id);
+        console.log('Outgoing relations: ', outgoingRelations)
+        const incomingRelations = schema.getIncomingPropertiesForClass(clickedClass.$id);
+        console.log('Incoming relations: ',incomingRelations)
+        let index = 0;
+        outgoingRelations.forEach((relationIRI:string) => {
+            schema.getRelationDetails(relationIRI)
+                .then(relationDetails => {
+                  if (relationDetails.targetClass) {
+                    createDiskAndLink(
+                        paper.model,
+                        relationDetails.targetClass,
+                        relationDetails.propertyLabel,
+                        'outgoing',
+                        clickedDisk.findView(paper),
+                        index,
+                        clickedDisk.id
+                    );
+                    index++;
+                    schema.lazyLoadData(relationDetails.targetClass.$id)
+                    .then(() => {
+                        // update loading state
+                        schema.loadingStates[relationDetails.targetClass.$id] = "loaded";
+                    })
+                    .catch(error => {
+                        console.error('Error lazy loading data:', error);
+                    });
+                  }
+                  else {
+                    console.error(`Relation target class for ${relationDetails.propertyLabel} not present in the schema`)
+                  }
+                });
+        });
+
+        incomingRelations.forEach((relationIRI:string) => {
+            schema.getRelationDetails(relationIRI)
+                .then(relationDetails => {
+                  if (relationDetails.sourceClass) {
+                    createDiskAndLink(
+                        paper.model,
+                        relationDetails.sourceClass,
+                        relationDetails.propertyLabel,
+                        'incoming',
+                        clickedDisk.findView(paper),
+                        index,
+                        clickedDisk.id
+                    );
+                    index++;
+                    schema.lazyLoadData(relationDetails.sourceClass.$id)
+                    .then(() => {
+                        // update loading state
+                        schema.loadingStates[relationDetails.sourceClass.$id] = "loaded";
+                    })
+                    .catch(error => {
+                        console.error('Error lazy loading data:', error);
+                    });
+                  }
+                  else {
+                    console.error(`Relation target class for ${relationDetails.propertyLabel} not present in the schema`)
+                  }
+                });
+        });
+    }
+});
+
+
+  ct.on('action:removeClass', function() {
+    // Your logic for removing class
+    clickedDisk.remove();  // This is a simplistic removal logic, replace with your actual logic
+  });
+
+  ct.render();
 }
 
 type DiagramProps = {
-  selectedClass?: string;
-  store: $rdf.IndexedFormula | null;
+  selectedClass?: SchemaPrototype;
   setTableData: (data: { [key: string]: string }) => void;
 }
 
-    const Diagram: React.FC<DiagramProps> = ({ selectedClass, store, setTableData }) => {
-        let currentDisk: shapes.standard.Circle | null = null;
-        let createdRelatedDisks: string[] = [];
-        let createdDiskById: { [id: string]: string } = {};
-        let lastClickedClass: string | null = null;
+const Diagram: React.FC<DiagramProps> = ({ selectedClass, setTableData }) => {
+  let currentDisk: ClassDisk | null = null;
+  let createdRelatedDisks: any[] = [];
+  let createdClassByIRI: string[] = []
+  let lastClickedClass: SchemaPrototype | null = null;
+  const {schema} = useContext(SchemaContext);
+  const expandedClasses = useRef(new Set<string>()).current;
+  const canvas = useRef(null);
 
-        const canvas = useRef(null);
-
-    useEffect(() => {
-      const graph = new dia.Graph();
-      const paper = new dia.Paper({
-        model: graph,
-        gridSize: 1,
-      //   background: {
-      //     color: '#F8F9FA',
-      // },
+  useEffect(() => {
+    const graph = new dia.Graph();
+    const paper = new dia.Paper({
+      model: graph,
+      gridSize: 1,
       frozen: true,
       async: true,
       sorting: dia.Paper.sorting.APPROX,
       cellViewNamespace: shapes
-  });
+    });
 
-      const scroller = new ui.PaperScroller({
-        paper,
-        autoResizePaper: true,
-        cursor: 'grab',
-        
+    const scroller = new ui.PaperScroller({
+      paper,
+      autoResizePaper: true,
+      cursor: 'grab',
     });
 
     canvas.current.appendChild(scroller.el);
@@ -57,137 +179,54 @@ type DiagramProps = {
     });
 
     paper.on('blank:pointerdown', (event, x, y) => {
-      removeTooltip();
       scroller.startPanning(event);
     });
-    
-    // Clear existing cells and previously created related disks
+
     graph.clear();
-    createdRelatedDisks = [];
 
     if (selectedClass) {
-      const disk = new shapes.standard.Circle({
-        size: { width: 100, height: 100 },
-        attrs: {
-          label: {
-            text: rdfHelpers.getLabelFromURI(store, selectedClass),
-            fontSize: 14
-          }
-        }
-      });
-      graph.addCell(disk);
-      paper.unfreeze();
-      currentDisk = disk;
-      createdDiskById[disk.id] = selectedClass;
-
-      const paperWidth = paper.options.width as number;
-      const paperHeight = paper.options.height as number;
-      disk.position((paperWidth - disk.attributes.size.width) / 2, (paperHeight - disk.attributes.size.height) / 2);
-    
-      const showTooltip = (e: MouseEvent, data: { [key: string]: string }) => {      
-        const tooltip = document.createElement("div");
-        tooltip.id = "tooltip";
-        tooltip.style.position = "fixed";
-        tooltip.style.left = `${e.clientX + 10}px`;
-        tooltip.style.top = `${e.clientY + 10}px`;
-
-        // Tailwind styling
-        tooltip.classList.add("bg-white", "bg-opacity-90", "rounded-lg", "shadow-lg", "p-4", "border", "border-gray-300");
-        // Creating a table for a more structured look
-        const table = document.createElement("table");
-        table.classList.add("min-w-full");
-
-        const tbody = document.createElement("tbody");
-
-        Object.keys(data).forEach((key) => {
-          const tr = document.createElement("tr");
-          tr.classList.add("hover:bg-gray-100");
-
-          const tdKey = document.createElement("td");
-          tdKey.classList.add("py-1", "px-2", "text-left");
-          tdKey.textContent = key;
-
-          const tdValue = document.createElement("td");
-          tdValue.classList.add("py-1", "px-2", "text-left");
-          tdValue.textContent = data[key];
-
-          tr.appendChild(tdKey);
-          tr.appendChild(tdValue);
-          tbody.appendChild(tr);
-        });
-
-        table.appendChild(tbody);
-        tooltip.appendChild(table);
-        document.body.appendChild(tooltip);
-      };
-
-    paper.on('cell:pointerdown', function(cellView, evt) {
-        const clickedDiskId = cellView.model.id;
-        const clickedClass = createdDiskById[clickedDiskId];
-        removeTooltip();
-        graph.removeCells(graph.getElements().filter(element => element.attributes.type === 'standard.Rectangle'));
-
-        if (clickedClass) {
-            const classNode = $rdf.namedNode(clickedClass);
-            const tableData1=rdfHelpers.getDirectProperties(store, classNode);
-            const tableData2=rdfHelpers.getDataProperties(store, classNode);
-            const tableData=Object.assign({}, tableData1, tableData2);
-            setTableData(tableData);
-            if (lastClickedClass === clickedClass) {
-              showTooltip(evt as unknown as MouseEvent, tableData);
+      schema?.lazyLoadData(selectedClass);
+      const classData = schema?.getClassById(selectedClass)
+      if (classData) {
+        console.log(classData);
+        const disk = new ClassDisk({
+          size: { width: 100, height: 100 },
+          attrs: {
+            label: {
+              text: classData.name,
+              fontSize: 14
             }
+          }
+        });
+        disk.prop('classData', classData);
+        graph.addCell(disk);
+        paper.unfreeze();
+        currentDisk = disk;
+        createdClassByIRI.push(classData.$id);
 
-        if (!createdRelatedDisks.includes(clickedDiskId)) {
-            // Mark this disk as "expanded"
-            createdRelatedDisks.push(clickedDiskId);
+        const paperWidth = paper.options.width as number;
+        const paperHeight = paper.options.height as number;
+        disk.position((paperWidth - disk.attributes.size.width) / 2, (paperHeight - disk.attributes.size.height) / 2);
+      } else {
+          console.error('No class data found for selected class:', selectedClass);
+      }
+    }
 
-            const clickedNode = $rdf.namedNode(clickedClass);
-            const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-            const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
-
-            outgoingConnectedClasses.forEach(({ target, propertyUri }, index) => {
-                createDiskAndLink(
-                    graph,
-                    target,
-                    propertyUri,
-                    'outgoing',
-                    createdDiskById,
-                    createdRelatedDisks,
-                    cellView,
-                    index,
-                    store,
-                    clickedDiskId
-                );
-                });
-
-                incomingConnectedClasses.forEach(({ target, propertyUri }, index) => {
-                createDiskAndLink(
-                    graph,
-                    target,
-                    propertyUri,
-                    'incoming',
-                    createdDiskById,
-                    createdRelatedDisks,
-                    cellView,
-                    index,
-                    store,
-                    clickedDiskId
-                );
-              });
-        };
-        lastClickedClass = clickedClass;
+    paper.on('cell:pointerdown', async function(cellView, evt) {
+      const clickedDisk = cellView.model as ClassDisk;
+      if (clickedDisk instanceof ClassDisk) {
+        displayContextMenu(paper, clickedDisk, evt, schema, expandedClasses);
       }
     });
-  }
-  return () => {
-    scroller.remove();
-    paper.remove();
-  };
-}, [selectedClass, store, setTableData]);
 
-  return (
-    <div id="paper" ref={canvas}/>
-  );
+return () => {
+  scroller.remove();
+  paper.remove();
 };
+}, [selectedClass, setTableData]);
 
+return (
+  <div id="paper" ref={canvas}/>
+);
+}
 export default Diagram;

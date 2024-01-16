@@ -1,0 +1,1015 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dcmitype: <http://purl.org/dc/dcmitype/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix void: <http://rdfs.org/ns/void#> .
+
+schema:3DModel a rdfs:Class ;
+    rdfs:label "3DModel" ;
+    rdfs:comment """A 3D model represents some kind of 3D content, which may have [[encoding]]s in one or more [[MediaObject]]s. Many 3D formats are available (e.g. see [Wikipedia](https://en.wikipedia.org/wiki/Category:3D_graphics_file_formats)); specific encoding formats can be represented using the [[encodingFormat]] property applied to the relevant [[MediaObject]]. For the
+case of a single file published after Zip compression, the convention of appending '+zip' to the [[encodingFormat]] can be used. Geospatial, AR/VR, artistic/animation, gaming, engineering and scientific content can all be represented using [[3DModel]].""" ;
+    rdfs:subClassOf schema:MediaObject ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2140> .
+
+schema:AMRadioChannel a rdfs:Class ;
+    rdfs:label "AMRadioChannel" ;
+    rdfs:comment "A radio channel that uses AM." ;
+    rdfs:subClassOf schema:RadioChannel ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1004> .
+
+schema:APIReference a rdfs:Class ;
+    rdfs:label "APIReference" ;
+    rdfs:comment "Reference documentation for application programming interfaces (APIs)." ;
+    rdfs:subClassOf schema:TechArticle .
+
+schema:AboutPage a rdfs:Class ;
+    rdfs:label "AboutPage" ;
+    rdfs:comment "Web page type: About page." ;
+    rdfs:subClassOf schema:WebPage .
+
+schema:AcceptAction a rdfs:Class ;
+    rdfs:label "AcceptAction" ;
+    rdfs:comment "The act of committing to/adopting an object.\\n\\nRelated actions:\\n\\n* [[RejectAction]]: The antonym of AcceptAction." ;
+    rdfs:subClassOf schema:AllocateAction .
+
+schema:Accommodation a rdfs:Class ;
+    rdfs:label "Accommodation" ;
+    rdfs:comment """An accommodation is a place that can accommodate human beings, e.g. a hotel room, a camping pitch, or a meeting room. Many accommodations are for overnight stays, but this is not a mandatory requirement.
+For more specific types of accommodations not defined in schema.org, one can use [[additionalType]] with external vocabularies.
+<br /><br />
+See also the <a href="/docs/hotels.html">dedicated document on the use of schema.org for marking up hotels and other forms of accommodations</a>.
+""" ;
+    rdfs:subClassOf schema:Place ;
+    schema:contributor <https://schema.org/docs/collab/STI_Accommodation_Ontology> .
+
+schema:AccountingService a rdfs:Class ;
+    rdfs:label "AccountingService" ;
+    rdfs:comment """Accountancy business.\\n\\nAs a [[LocalBusiness]] it can be described as a [[provider]] of one or more [[Service]]\\(s).
+      """ ;
+    rdfs:subClassOf schema:FinancialService .
+
+schema:AchieveAction a rdfs:Class ;
+    rdfs:label "AchieveAction" ;
+    rdfs:comment "The act of accomplishing something via previous efforts. It is an instantaneous action rather than an ongoing process." ;
+    rdfs:subClassOf schema:Action .
+
+schema:Action a rdfs:Class ;
+    rdfs:label "Action" ;
+    rdfs:comment "An action performed by a direct agent and indirect participants upon a direct object. Optionally happens at a location with the help of an inanimate instrument. The execution of the action may produce a result. Specific action sub-type documentation specifies the exact expectation of each argument/role.\\n\\nSee also [blog post](http://blog.schema.org/2014/04/announcing-schemaorg-actions.html) and [Actions overview document](https://schema.org/docs/actions.html)." ;
+    rdfs:subClassOf schema:Thing ;
+    schema:contributor <https://schema.org/docs/collab/ActionCollabClass> .
+
+schema:ActionAccessSpecification a rdfs:Class ;
+    rdfs:label "ActionAccessSpecification" ;
+    rdfs:comment "A set of requirements that must be fulfilled in order to perform an Action." ;
+    rdfs:subClassOf schema:Intangible ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1741> .
+
+schema:ActionStatusType a rdfs:Class ;
+    rdfs:label "ActionStatusType" ;
+    rdfs:comment "The status of an Action." ;
+    rdfs:subClassOf schema:StatusEnumeration .
+
+schema:ActivateAction a rdfs:Class ;
+    rdfs:label "ActivateAction" ;
+    rdfs:comment "The act of starting or activating a device or application (e.g. starting a timer or turning on a flashlight)." ;
+    rdfs:subClassOf schema:ControlAction .
+
+schema:AddAction a rdfs:Class ;
+    rdfs:label "AddAction" ;
+    rdfs:comment "The act of editing by adding an object to a collection." ;
+    rdfs:subClassOf schema:UpdateAction .
+
+schema:AdministrativeArea a rdfs:Class ;
+    rdfs:label "AdministrativeArea" ;
+    rdfs:comment "A geographical region, typically under the jurisdiction of a particular government." ;
+    rdfs:subClassOf schema:Place .
+
+schema:AdultEntertainment a rdfs:Class ;
+    rdfs:label "AdultEntertainment" ;
+    rdfs:comment "An adult entertainment establishment." ;
+    rdfs:subClassOf schema:EntertainmentBusiness .
+
+schema:AdultOrientedEnumeration a rdfs:Class ;
+    rdfs:label "AdultOrientedEnumeration" ;
+    rdfs:comment "Enumeration of considerations that make a product relevant or potentially restricted for adults only." ;
+    rdfs:subClassOf schema:Enumeration ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2989> .
+
+schema:AdvertiserContentArticle a rdfs:Class ;
+    rdfs:label "AdvertiserContentArticle" ;
+    rdfs:comment "An [[Article]] that an external entity has paid to place or to produce to its specifications. Includes [advertorials](https://en.wikipedia.org/wiki/Advertorial), sponsored content, native advertising and other paid content." ;
+    rdfs:subClassOf schema:Article ;
+    schema:contributor <https://schema.org/docs/collab/TP> ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1525> .
+
+schema:AggregateOffer a rdfs:Class ;
+    rdfs:label "AggregateOffer" ;
+    rdfs:comment "When a single product is associated with multiple offers (for example, the same pair of shoes is offered by different merchants), then AggregateOffer can be used.\\n\\nNote: AggregateOffers are normally expected to associate multiple offers that all share the same defined [[businessFunction]] value, or default to http://purl.org/goodrelations/v1#Sell if businessFunction is not explicitly defined." ;
+    rdfs:subClassOf schema:Offer .
+
+schema:AggregateRating a rdfs:Class ;
+    rdfs:label "AggregateRating" ;
+    rdfs:comment "The average rating based on multiple ratings or reviews." ;
+    rdfs:subClassOf schema:Rating .
+
+schema:AgreeAction a rdfs:Class ;
+    rdfs:label "AgreeAction" ;
+    rdfs:comment "The act of expressing a consistency of opinion with the object. An agent agrees to/about an object (a proposition, topic or theme) with participants." ;
+    rdfs:subClassOf schema:ReactAction .
+
+schema:Airline a rdfs:Class ;
+    rdfs:label "Airline" ;
+    rdfs:comment "An organization that provides flights for passengers." ;
+    rdfs:subClassOf schema:Organization .
+
+schema:Airport a rdfs:Class ;
+    rdfs:label "Airport" ;
+    rdfs:comment "An airport." ;
+    rdfs:subClassOf schema:CivicStructure .
+
+schema:AutoWash a rdfs:Class ;
+    rdfs:label "AutoWash" ;
+    rdfs:comment "A car wash business." ;
+    rdfs:subClassOf schema:AutomotiveBusiness .
+
+schema:AutomatedTeller a rdfs:Class ;
+    rdfs:label "AutomatedTeller" ;
+    rdfs:comment "ATM/cash machine." ;
+    rdfs:subClassOf schema:FinancialService .
+
+schema:AutomotiveBusiness a rdfs:Class ;
+    rdfs:label "AutomotiveBusiness" ;
+    rdfs:comment "Car repair, sales, or parts." ;
+    rdfs:subClassOf schema:LocalBusiness .
+
+schema:BackgroundNewsArticle a rdfs:Class ;
+    rdfs:label "BackgroundNewsArticle" ;
+    rdfs:comment "A [[NewsArticle]] providing historical context, definition and detail on a specific topic (aka \"explainer\" or \"backgrounder\"). For example, an in-depth article or frequently-asked-questions ([FAQ](https://en.wikipedia.org/wiki/FAQ)) document on topics such as Climate Change or the European Union. Other kinds of background material from a non-news setting are often described using [[Book]] or [[Article]], in particular [[ScholarlyArticle]]. See also [[NewsArticle]] for related vocabulary from a learning/education perspective." ;
+    rdfs:subClassOf schema:NewsArticle ;
+    schema:contributor <https://schema.org/docs/collab/TP> ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1525> .
+
+schema:Bakery a rdfs:Class ;
+    rdfs:label "Bakery" ;
+    rdfs:comment "A bakery." ;
+    rdfs:subClassOf schema:FoodEstablishment .
+
+schema:BankAccount a rdfs:Class ;
+    rdfs:label "BankAccount" ;
+    rdfs:comment "A product or service offered by a bank whereby one may deposit, withdraw or transfer money and in some cases be paid interest." ;
+    rdfs:subClassOf schema:FinancialProduct ;
+    schema:contributor <https://schema.org/docs/collab/FIBO> .
+
+schema:BankOrCreditUnion a rdfs:Class ;
+    rdfs:label "BankOrCreditUnion" ;
+    rdfs:comment "Bank or credit union." ;
+    rdfs:subClassOf schema:FinancialService .
+
+schema:BarOrPub a rdfs:Class ;
+    rdfs:label "BarOrPub" ;
+    rdfs:comment "A bar or pub." ;
+    rdfs:subClassOf schema:FoodEstablishment .
+
+schema:Barcode a rdfs:Class ;
+    rdfs:label "Barcode" ;
+    rdfs:comment "An image of a visual machine-readable code such as a barcode or QR code." ;
+    rdfs:subClassOf schema:ImageObject .
+
+schema:Beach a rdfs:Class ;
+    rdfs:label "Beach" ;
+    rdfs:comment "Beach." ;
+    rdfs:subClassOf schema:CivicStructure .
+
+schema:BeautySalon a rdfs:Class ;
+    rdfs:label "BeautySalon" ;
+    rdfs:comment "Beauty salon." ;
+    rdfs:subClassOf schema:HealthAndBeautyBusiness .
+
+schema:BedAndBreakfast a rdfs:Class ;
+    rdfs:label "BedAndBreakfast" ;
+    rdfs:comment """Bed and breakfast.
+<br /><br />
+See also the <a href="/docs/hotels.html">dedicated document on the use of schema.org for marking up hotels and other forms of accommodations</a>.
+""" ;
+    rdfs:subClassOf schema:LodgingBusiness .
+
+schema:BedDetails a rdfs:Class ;
+    rdfs:label "BedDetails" ;
+    rdfs:comment "An entity holding detailed information about the available bed types, e.g. the quantity of twin beds for a hotel room. For the single case of just one bed of a certain type, you can use bed directly with a text. See also [[BedType]] (under development)." ;
+    rdfs:subClassOf schema:Intangible ;
+    schema:contributor <https://schema.org/docs/collab/STI_Accommodation_Ontology> .
+
+schema:BedType a rdfs:Class ;
+    rdfs:label "BedType" ;
+    rdfs:comment "A type of bed. This is used for indicating the bed or beds available in an accommodation." ;
+    rdfs:subClassOf schema:QualitativeValue ;
+    schema:contributor <https://schema.org/docs/collab/STI_Accommodation_Ontology> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1262> .
+
+schema:BefriendAction a rdfs:Class ;
+    rdfs:label "BefriendAction" ;
+    rdfs:comment "The act of forming a personal connection with someone (object) mutually/bidirectionally/symmetrically.\\n\\nRelated actions:\\n\\n* [[FollowAction]]: Unlike FollowAction, BefriendAction implies that the connection is reciprocal." ;
+    rdfs:subClassOf schema:InteractAction .
+
+schema:BikeStore a rdfs:Class ;
+    rdfs:label "BikeStore" ;
+    rdfs:comment "A bike store." ;
+    rdfs:subClassOf schema:Store .
+
+schema:BioChemEntity a rdfs:Class ;
+    rdfs:label "BioChemEntity" ;
+    rdfs:comment "Any biological, chemical, or biochemical thing. For example: a protein; a gene; a chemical; a synthetic chemical." ;
+    rdfs:subClassOf schema:Thing ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <http://bioschemas.org> .
+
+schema:Blog a rdfs:Class ;
+    rdfs:label "Blog" ;
+    rdfs:comment "A [blog](https://en.wikipedia.org/wiki/Blog), sometimes known as a \"weblog\". Note that the individual posts ([[BlogPosting]]s) in a [[Blog]] are often colloquially referred to by the same term." ;
+    rdfs:subClassOf schema:CreativeWork .
+
+schema:BlogPosting a rdfs:Class ;
+    rdfs:label "BlogPosting" ;
+    rdfs:comment "A blog post." ;
+    rdfs:subClassOf schema:SocialMediaPosting .
+
+schema:BloodTest a rdfs:Class ;
+    rdfs:label "BloodTest" ;
+    rdfs:comment "A medical test performed on a sample of a patient's blood." ;
+    rdfs:subClassOf schema:MedicalTest ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CaseSeries a schema:MedicalObservationalStudyDesign ;
+    rdfs:label "CaseSeries" ;
+    rdfs:comment "A case series (also known as a clinical series) is a medical research study that tracks patients with a known exposure given similar treatment or examines their medical records for exposure and outcome. A case series can be retrospective or prospective and usually involves a smaller number of patients than the more powerful case-control studies or randomized controlled trials. Case series may be consecutive or non-consecutive, depending on whether all cases presenting to the reporting authors over a period of time were included, or only a selection." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CassetteFormat a schema:MusicReleaseFormatType ;
+    rdfs:label "CassetteFormat" ;
+    rdfs:comment "CassetteFormat." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:CausesHealthAspect a schema:HealthAspectEnumeration ;
+    rdfs:label "CausesHealthAspect" ;
+    rdfs:comment "Information about the causes and main actions that gave rise to the topic." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2374> .
+
+schema:CharitableIncorporatedOrganization a schema:UKNonprofitType ;
+    rdfs:label "CharitableIncorporatedOrganization" ;
+    rdfs:comment "CharitableIncorporatedOrganization: Non-profit type referring to a Charitable Incorporated Organization (UK)." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2543> .
+
+schema:Chiropractic a schema:MedicineSystem ;
+    rdfs:label "Chiropractic" ;
+    rdfs:comment "A system of medicine focused on the relationship between the body's structure, mainly the spine, and its functioning." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CleaningFee a schema:PriceComponentTypeEnumeration ;
+    rdfs:label "CleaningFee" ;
+    rdfs:comment "Represents the cleaning fee part of the total price for an offered product, for example a vacation rental." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2689> .
+
+schema:Clinician a schema:MedicalAudienceType ;
+    rdfs:label "Clinician" ;
+    rdfs:comment "Medical clinicians, including practicing physicians and other medical professionals involved in clinical practice." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CoOp a schema:GamePlayMode ;
+    rdfs:label "CoOp" ;
+    rdfs:comment "Play mode: CoOp. Co-operative games, where you play on the same team with friends." .
+
+schema:CohortStudy a schema:MedicalObservationalStudyDesign ;
+    rdfs:label "CohortStudy" ;
+    rdfs:comment "Also known as a panel study. A cohort study is a form of longitudinal study used in medicine and social science. It is one type of study design and should be compared with a cross-sectional study.  A cohort is a group of people who share a common characteristic or experience within a defined period (e.g., are born, leave school, lose their job, are exposed to a drug or a vaccine, etc.). The comparison group may be the general population from which the cohort is drawn, or it may be another cohort of persons thought to have had little or no exposure to the substance under investigation, but otherwise similar. Alternatively, subgroups within the cohort may be compared with each other." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CommentPermission a schema:DigitalDocumentPermissionType ;
+    rdfs:label "CommentPermission" ;
+    rdfs:comment "Permission to add comments to the document." .
+
+schema:CommunityHealth a schema:MedicalSpecialty ;
+    rdfs:label "CommunityHealth" ;
+    rdfs:comment "A field of public health focusing on improving health characteristics of a defined population in relation with their geographical or environment areas." ;
+    rdfs:subClassOf schema:MedicalBusiness ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CompilationAlbum a schema:MusicAlbumProductionType ;
+    rdfs:label "CompilationAlbum" ;
+    rdfs:comment "CompilationAlbum." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:Completed a schema:MedicalStudyStatus ;
+    rdfs:label "Completed" ;
+    rdfs:comment "Completed." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:CompletedActionStatus a schema:ActionStatusType ;
+    rdfs:label "CompletedActionStatus" ;
+    rdfs:comment "An action that has already taken place." .
+
+schema:ContagiousnessHealthAspect a schema:HealthAspectEnumeration ;
+    rdfs:label "ContagiousnessHealthAspect" ;
+    rdfs:comment "Content about contagion mechanisms and contagiousness information over the topic." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2374> .
+
+schema:CrossSectional a schema:MedicalObservationalStudyDesign ;
+    rdfs:label "CrossSectional" ;
+    rdfs:comment "Studies carried out on pre-existing data (usually from 'snapshot' surveys), such as that collected by the Census Bureau. Sometimes called Prevalence Studies." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:DJMixAlbum a schema:MusicAlbumProductionType ;
+    rdfs:label "DJMixAlbum" ;
+    rdfs:comment "DJMixAlbum." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:DVDFormat a schema:MusicReleaseFormatType ;
+    rdfs:label "DVDFormat" ;
+    rdfs:comment "DVDFormat." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:DamagedCondition a schema:OfferItemCondition ;
+    rdfs:label "DamagedCondition" ;
+    rdfs:comment "Indicates that the item is damaged." .
+
+schema:DangerousGoodConsideration a schema:AdultOrientedEnumeration ;
+    rdfs:label "DangerousGoodConsideration" ;
+    rdfs:comment "The item is dangerous and requires careful handling and/or special training of the user. See also the [UN Model Classification](https://unece.org/DAM/trans/danger/publi/unrec/rev17/English/02EREv17_Part2.pdf) defining the 9 classes of dangerous goods such as explosives, gases, flammables, and more." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2989> .
+
+schema:DecontextualizedContent a schema:MediaManipulationRatingEnumeration ;
+    rdfs:label "DecontextualizedContent" ;
+    rdfs:comment """Content coded 'missing context' in a [[MediaReview]], considered in the context of how it was published or shared.
+
+For a [[VideoObject]] to be 'missing context': Presenting unaltered video in an inaccurate manner that misrepresents the footage. For example, using incorrect dates or locations, altering the transcript or sharing brief clips from a longer video to mislead viewers. (A video rated 'original' can also be missing context.)
+
+For an [[ImageObject]] to be 'missing context': Presenting unaltered images in an inaccurate manner to misrepresent the image and mislead the viewer. For example, a common tactic is using an unaltered image but saying it came from a different time or place. (An image rated 'original' can also be missing context.)
+
+For an [[ImageObject]] with embedded text to be 'missing context': An unaltered image presented in an inaccurate manner to misrepresent the image and mislead the viewer. For example, a common tactic is using an unaltered image but saying it came from a different time or place. (An 'original' image with inaccurate text would generally fall in this category.)
+
+For an [[AudioObject]] to be 'missing context': Unaltered audio presented in an inaccurate manner that misrepresents it. For example, using incorrect dates or locations, or sharing brief clips from a longer recording to mislead viewers. (Audio rated “original” can also be missing context.)
+""" ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2450> .
+
+schema:DefinitiveLegalValue a schema:LegalValueLevel ;
+    rdfs:label "DefinitiveLegalValue" ;
+    rdfs:comment """Indicates a document for which the text is conclusively what the law says and is legally binding. (E.g. the digitally signed version of an Official Journal.)
+  Something "Definitive" is considered to be also [[AuthoritativeLegalValue]].""" ;
+    skos:exactMatch <http://data.europa.eu/eli/ontology#LegalValue-definitive> ;
+    schema:contributor <https://schema.org/docs/collab/ELI> ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1156> .
+
+schema:DemoAlbum a schema:MusicAlbumProductionType ;
+    rdfs:label "DemoAlbum" ;
+    rdfs:comment "DemoAlbum." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:DemoGameAvailability a schema:GameAvailabilityEnumeration ;
+    rdfs:label "DemoGameAvailability" ;
+    rdfs:comment "Indicates demo game availability, i.e. a somehow limited demonstration of the full game." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/3058> .
+
+schema:Dentistry a schema:MedicalSpecialty ;
+    rdfs:label "Dentistry" ;
+    rdfs:comment "A branch of medicine that is involved in the dental care." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:Dermatologic a schema:MedicalSpecialty ;
+    rdfs:label "Dermatologic" ;
+    rdfs:comment "Something relating to or practicing dermatology." ;
+    schema:isPartOf <https://health-lifesci.schema.org> ;
+    schema:supersededBy schema:Dermatology .
+
+schema:DesktopWebPlatform a schema:DigitalPlatformEnumeration ;
+    rdfs:label "DesktopWebPlatform" ;
+    rdfs:comment "Represents the broad notion of 'desktop' browsers as a Web Platform." ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/3057> .
+
+schema:DiabeticDiet a schema:RestrictedDiet ;
+    rdfs:label "DiabeticDiet" ;
+    rdfs:comment "A diet appropriate for people with diabetes." .
+
+schema:Diagnostic a schema:MedicalDevicePurpose ;
+    rdfs:label "Diagnostic" ;
+    rdfs:comment "A medical device used for diagnostic purposes." ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:DietNutrition a schema:MedicalSpecialty ;
+    rdfs:label "DietNutrition" ;
+    rdfs:comment "Dietetics and nutrition as a medical specialty." ;
+    rdfs:subClassOf schema:MedicalBusiness ;
+    schema:isPartOf <https://health-lifesci.schema.org> .
+
+schema:DigitalAudioTapeFormat a schema:MusicReleaseFormatType ;
+    rdfs:label "DigitalAudioTapeFormat" ;
+    rdfs:comment "DigitalAudioTapeFormat." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> .
+
+schema:mainEntity a rdf:Property ;
+    rdfs:label "mainEntity" ;
+    rdfs:comment "Indicates the primary entity described in some page or other CreativeWork." ;
+    rdfs:subPropertyOf schema:about ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:inverseOf schema:mainEntityOfPage ;
+    schema:rangeIncludes schema:Thing .
+
+schema:mainEntityOfPage a rdf:Property ;
+    rdfs:label "mainEntityOfPage" ;
+    rdfs:comment "Indicates a page (or other CreativeWork) for which this thing is the main entity being described. See [background notes](/docs/datamodel.html#mainEntityBackground) for details." ;
+    schema:domainIncludes schema:Thing ;
+    schema:inverseOf schema:mainEntity ;
+    schema:rangeIncludes schema:CreativeWork,
+        schema:URL .
+
+schema:makesOffer a rdf:Property ;
+    rdfs:label "makesOffer" ;
+    rdfs:comment "A pointer to products or services offered by the organization or person." ;
+    schema:contributor <https://schema.org/docs/collab/GoodRelationsTerms> ;
+    schema:domainIncludes schema:Organization,
+        schema:Person ;
+    schema:inverseOf schema:offeredBy ;
+    schema:rangeIncludes schema:Offer .
+
+schema:measurementTechnique a rdf:Property ;
+    rdfs:label "measurementTechnique" ;
+    rdfs:comment """A technique, method or technology used in an [[Observation]], [[StatisticalVariable]] or [[Dataset]] (or [[DataDownload]], [[DataCatalog]]), corresponding to the method used for measuring the corresponding variable(s) (for datasets, described using [[variableMeasured]]; for [[Observation]], a [[StatisticalVariable]]). Often but not necessarily each [[variableMeasured]] will have an explicit representation as (or mapping to) an property such as those defined in Schema.org, or other RDF vocabularies and "knowledge graphs". In that case the subproperty of [[variableMeasured]] called [[measuredProperty]] is applicable.
+    
+The [[measurementTechnique]] property helps when extra clarification is needed about how a [[measuredProperty]] was measured. This is oriented towards scientific and scholarly dataset publication but may have broader applicability; it is not intended as a full representation of measurement, but can often serve as a high level summary for dataset discovery. 
+
+For example, if [[variableMeasured]] is: molecule concentration, [[measurementTechnique]] could be: "mass spectrometry" or "nmr spectroscopy" or "colorimetry" or "immunofluorescence". If the [[variableMeasured]] is "depression rating", the [[measurementTechnique]] could be "Zung Scale" or "HAM-D" or "Beck Depression Inventory". 
+
+If there are several [[variableMeasured]] properties recorded for some given data object, use a [[PropertyValue]] for each [[variableMeasured]] and attach the corresponding [[measurementTechnique]]. The value can also be from an enumeration, organized as a [[MeasurementMetholdEnumeration]].""" ;
+    schema:domainIncludes schema:DataCatalog,
+        schema:DataDownload,
+        schema:Dataset,
+        schema:Observation,
+        schema:PropertyValue,
+        schema:StatisticalVariable ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:DefinedTerm,
+        schema:MeasurementMethodEnum,
+        schema:Text,
+        schema:URL ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1425> .
+
+schema:offeredBy a rdf:Property ;
+    rdfs:label "offeredBy" ;
+    rdfs:comment "A pointer to the organization or person making the offer." ;
+    schema:domainIncludes schema:Offer ;
+    schema:inverseOf schema:makesOffer ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:offers a rdf:Property ;
+    rdfs:label "offers" ;
+    rdfs:comment """An offer to provide this item&#x2014;for example, an offer to sell a product, rent the DVD of a movie, perform a service, or give away tickets to an event. Use [[businessFunction]] to indicate the kind of transaction offered, i.e. sell, lease, etc. This property can also be used to describe a [[Demand]]. While this property is listed as expected on a number of common types, it can be used in others. In that case, using a second type, such as Product or a subtype of Product, can clarify the nature of the offer.
+      """ ;
+    schema:domainIncludes schema:AggregateOffer,
+        schema:CreativeWork,
+        schema:EducationalOccupationalProgram,
+        schema:Event,
+        schema:MenuItem,
+        schema:Product,
+        schema:Service,
+        schema:Trip ;
+    schema:inverseOf schema:itemOffered ;
+    schema:rangeIncludes schema:Demand,
+        schema:Offer ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2289> .
+
+schema:parent a rdf:Property ;
+    rdfs:label "parent" ;
+    rdfs:comment "A parent of this person." ;
+    schema:domainIncludes schema:Person ;
+    schema:rangeIncludes schema:Person .
+
+schema:parentTaxon a rdf:Property ;
+    rdfs:label "parentTaxon" ;
+    rdfs:comment "Closest parent taxon of the taxon in question." ;
+    schema:domainIncludes schema:Taxon ;
+    schema:inverseOf schema:childTaxon ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:Taxon,
+        schema:Text,
+        schema:URL ;
+    schema:source <http://www.bioschemas.org/Taxon> .
+
+schema:partOfSeries a rdf:Property ;
+    rdfs:label "partOfSeries" ;
+    rdfs:comment "The series to which this episode or season belongs." ;
+    rdfs:subPropertyOf schema:isPartOf ;
+    schema:domainIncludes schema:Clip,
+        schema:CreativeWorkSeason,
+        schema:Episode ;
+    schema:rangeIncludes schema:CreativeWorkSeries .
+
+schema:partOfTrip a rdf:Property ;
+    rdfs:label "partOfTrip" ;
+    rdfs:comment "Identifies that this [[Trip]] is a subTrip of another Trip.  For example Day 1, Day 2, etc. of a multi-day trip." ;
+    schema:contributor <https://schema.org/docs/collab/Tourism> ;
+    schema:domainIncludes schema:Trip ;
+    schema:inverseOf schema:subTrip ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:Trip ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1810> .
+
+schema:paymentDueDate a rdf:Property ;
+    rdfs:label "paymentDueDate" ;
+    rdfs:comment "The date that payment is due." ;
+    schema:domainIncludes schema:Invoice,
+        schema:Order ;
+    schema:rangeIncludes schema:Date,
+        schema:DateTime .
+
+schema:performTime a rdf:Property ;
+    rdfs:label "performTime" ;
+    rdfs:comment "The length of time it takes to perform instructions or a direction (not including time to prepare the supplies), in [ISO 8601 duration format](http://en.wikipedia.org/wiki/ISO_8601)." ;
+    schema:domainIncludes schema:HowTo,
+        schema:HowToDirection ;
+    schema:rangeIncludes schema:Duration .
+
+schema:performer a rdf:Property ;
+    rdfs:label "performer" ;
+    rdfs:comment "A performer at the event&#x2014;for example, a presenter, musician, musical group or actor." ;
+    schema:domainIncludes schema:Event ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:photo a rdf:Property ;
+    rdfs:label "photo" ;
+    rdfs:comment "A photograph of this place." ;
+    rdfs:subPropertyOf schema:image ;
+    schema:domainIncludes schema:Place ;
+    schema:rangeIncludes schema:ImageObject,
+        schema:Photograph .
+
+schema:provider a rdf:Property ;
+    rdfs:label "provider" ;
+    rdfs:comment "The service provider, service operator, or service performer; the goods producer. Another party (a seller) may offer those services or goods on behalf of the provider. A provider may also serve as the seller." ;
+    schema:domainIncludes schema:Action,
+        schema:CreativeWork,
+        schema:EducationalOccupationalProgram,
+        schema:Invoice,
+        schema:ParcelDelivery,
+        schema:Reservation,
+        schema:Service,
+        schema:Trip ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2289>,
+        <https://github.com/schemaorg/schemaorg/issues/2927> .
+
+schema:providesBroadcastService a rdf:Property ;
+    rdfs:label "providesBroadcastService" ;
+    rdfs:comment "The BroadcastService offered on this channel." ;
+    schema:domainIncludes schema:BroadcastChannel ;
+    schema:inverseOf schema:hasBroadcastChannel ;
+    schema:rangeIncludes schema:BroadcastService .
+
+schema:recipeIngredient a rdf:Property ;
+    rdfs:label "recipeIngredient" ;
+    rdfs:comment "A single ingredient used in the recipe, e.g. sugar, flour or garlic." ;
+    rdfs:subPropertyOf schema:supply ;
+    schema:domainIncludes schema:Recipe ;
+    schema:rangeIncludes schema:Text .
+
+schema:recordedAs a rdf:Property ;
+    rdfs:label "recordedAs" ;
+    rdfs:comment "An audio recording of the work." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> ;
+    schema:domainIncludes schema:MusicComposition ;
+    schema:inverseOf schema:recordingOf ;
+    schema:rangeIncludes schema:MusicRecording .
+
+schema:recordedAt a rdf:Property ;
+    rdfs:label "recordedAt" ;
+    rdfs:comment "The Event where the CreativeWork was recorded. The CreativeWork may capture all or part of the event." ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:inverseOf schema:recordedIn ;
+    schema:rangeIncludes schema:Event .
+
+schema:recordedIn a rdf:Property ;
+    rdfs:label "recordedIn" ;
+    rdfs:comment "The CreativeWork that captured all or part of this Event." ;
+    schema:domainIncludes schema:Event ;
+    schema:inverseOf schema:recordedAt ;
+    schema:rangeIncludes schema:CreativeWork .
+
+schema:recordingOf a rdf:Property ;
+    rdfs:label "recordingOf" ;
+    rdfs:comment "The composition this track is a recording of." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> ;
+    schema:domainIncludes schema:MusicRecording ;
+    schema:inverseOf schema:recordedAs ;
+    schema:rangeIncludes schema:MusicComposition .
+
+schema:releaseOf a rdf:Property ;
+    rdfs:label "releaseOf" ;
+    rdfs:comment "The album this is a release of." ;
+    schema:contributor <https://schema.org/docs/collab/MBZ> ;
+    schema:domainIncludes schema:MusicRelease ;
+    schema:inverseOf schema:albumRelease ;
+    schema:rangeIncludes schema:MusicAlbum .
+
+schema:review a rdf:Property ;
+    rdfs:label "review" ;
+    rdfs:comment "A review of the item." ;
+    schema:domainIncludes schema:Brand,
+        schema:CreativeWork,
+        schema:Event,
+        schema:Offer,
+        schema:Organization,
+        schema:Place,
+        schema:Product,
+        schema:Service ;
+    schema:rangeIncludes schema:Review .
+
+schema:roleName a rdf:Property ;
+    rdfs:label "roleName" ;
+    rdfs:comment "A role played, performed or filled by a person or organization. For example, the team of creators for a comic book might fill the roles named 'inker', 'penciller', and 'letterer'; or an athlete in a SportsTeam might play in the position named 'Quarterback'." ;
+    schema:domainIncludes schema:Role ;
+    schema:rangeIncludes schema:Text,
+        schema:URL .
+
+schema:runtimePlatform a rdf:Property ;
+    rdfs:label "runtimePlatform" ;
+    rdfs:comment "Runtime platform or script interpreter dependencies (example: Java v1, Python 2.3, .NET Framework 3.0)." ;
+    schema:domainIncludes schema:SoftwareSourceCode ;
+    schema:rangeIncludes schema:Text .
+
+schema:season a rdf:Property ;
+    rdfs:label "season" ;
+    rdfs:comment "A season in a media series." ;
+    rdfs:subPropertyOf schema:hasPart ;
+    schema:domainIncludes schema:RadioSeries,
+        schema:TVSeries,
+        schema:VideoGameSeries ;
+    schema:rangeIncludes schema:CreativeWorkSeason,
+        schema:URL ;
+    schema:supersededBy schema:containsSeason .
+
+schema:serialNumber a rdf:Property ;
+    rdfs:label "serialNumber" ;
+    rdfs:comment "The serial number or any alphanumeric identifier of a particular product. When attached to an offer, it is a shortcut for the serial number of the product included in the offer." ;
+    rdfs:subPropertyOf schema:identifier ;
+    schema:contributor <https://schema.org/docs/collab/GoodRelationsTerms> ;
+    schema:domainIncludes schema:Demand,
+        schema:IndividualProduct,
+        schema:Offer ;
+    schema:rangeIncludes schema:Text .
+
+schema:serviceArea a rdf:Property ;
+    rdfs:label "serviceArea" ;
+    rdfs:comment "The geographic area where the service is provided." ;
+    schema:domainIncludes schema:ContactPoint,
+        schema:Organization,
+        schema:Service ;
+    schema:rangeIncludes schema:AdministrativeArea,
+        schema:GeoShape,
+        schema:Place ;
+    schema:supersededBy schema:areaServed .
+
+schema:serviceOutput a rdf:Property ;
+    rdfs:label "serviceOutput" ;
+    rdfs:comment "The tangible thing generated by the service, e.g. a passport, permit, etc." ;
+    schema:domainIncludes schema:Service ;
+    schema:rangeIncludes schema:Thing .
+
+schema:sibling a rdf:Property ;
+    rdfs:label "sibling" ;
+    rdfs:comment "A sibling of the person." ;
+    schema:domainIncludes schema:Person ;
+    schema:rangeIncludes schema:Person .
+
+schema:significantLink a rdf:Property ;
+    rdfs:label "significantLink" ;
+    rdfs:comment "One of the more significant URLs on the page. Typically, these are the non-navigation links that are clicked on the most." ;
+    schema:domainIncludes schema:WebPage ;
+    schema:rangeIncludes schema:URL .
+
+schema:softwareRequirements a rdf:Property ;
+    rdfs:label "softwareRequirements" ;
+    rdfs:comment "Component dependency requirements for application. This includes runtime environments and shared libraries that are not included in the application distribution package, but required to run the application (examples: DirectX, Java or .NET runtime)." ;
+    schema:domainIncludes schema:SoftwareApplication ;
+    schema:rangeIncludes schema:Text,
+        schema:URL .
+
+schema:sponsor a rdf:Property ;
+    rdfs:label "sponsor" ;
+    rdfs:comment "A person or organization that supports a thing through a pledge, promise, or financial contribution. E.g. a sponsor of a Medical Study or a corporate sponsor of an event." ;
+    schema:domainIncludes schema:CreativeWork,
+        schema:Event,
+        schema:Grant,
+        schema:MedicalStudy,
+        schema:Organization,
+        schema:Person ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:subOrganization a rdf:Property ;
+    rdfs:label "subOrganization" ;
+    rdfs:comment "A relationship between two organizations where the first includes the second, e.g., as a subsidiary. See also: the more specific 'department' property." ;
+    schema:domainIncludes schema:Organization ;
+    schema:inverseOf schema:parentOrganization ;
+    schema:rangeIncludes schema:Organization .
+
+schema:subTrip a rdf:Property ;
+    rdfs:label "subTrip" ;
+    rdfs:comment "Identifies a [[Trip]] that is a subTrip of this Trip.  For example Day 1, Day 2, etc. of a multi-day trip." ;
+    schema:contributor <https://schema.org/docs/collab/Tourism> ;
+    schema:domainIncludes schema:Trip ;
+    schema:inverseOf schema:partOfTrip ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:Trip ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1810> .
+
+schema:subjectOf a rdf:Property ;
+    rdfs:label "subjectOf" ;
+    rdfs:comment "A CreativeWork or Event about this Thing." ;
+    schema:domainIncludes schema:Thing ;
+    schema:inverseOf schema:about ;
+    schema:rangeIncludes schema:CreativeWork,
+        schema:Event ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/1670> .
+
+schema:suggestedAnswer a rdf:Property ;
+    rdfs:label "suggestedAnswer" ;
+    rdfs:comment "An answer (possibly one of several, possibly incorrect) to a Question, e.g. on a Question/Answer site." ;
+    schema:domainIncludes schema:Question ;
+    schema:rangeIncludes schema:Answer,
+        schema:ItemList .
+
+schema:superEvent a rdf:Property ;
+    rdfs:label "superEvent" ;
+    rdfs:comment "An event that this event is a part of. For example, a collection of individual music performances might each have a music festival as their superEvent." ;
+    schema:domainIncludes schema:Event ;
+    schema:inverseOf schema:subEvent ;
+    schema:rangeIncludes schema:Event .
+
+schema:targetCollection a rdf:Property ;
+    rdfs:label "targetCollection" ;
+    rdfs:comment "A sub property of object. The collection target of the action." ;
+    rdfs:subPropertyOf schema:object ;
+    schema:domainIncludes schema:UpdateAction ;
+    schema:rangeIncludes schema:Thing .
+
+schema:temporalCoverage a rdf:Property ;
+    rdfs:label "temporalCoverage" ;
+    rdfs:comment """The temporalCoverage of a CreativeWork indicates the period that the content applies to, i.e. that it describes, either as a DateTime or as a textual string indicating a time period in [ISO 8601 time interval format](https://en.wikipedia.org/wiki/ISO_8601#Time_intervals). In
+      the case of a Dataset it will typically indicate the relevant time period in a precise notation (e.g. for a 2011 census dataset, the year 2011 would be written "2011/2012"). Other forms of content, e.g. ScholarlyArticle, Book, TVSeries or TVEpisode, may indicate their temporalCoverage in broader terms - textually or via well-known URL.
+      Written works such as books may sometimes have precise temporal coverage too, e.g. a work set in 1939 - 1945 can be indicated in ISO 8601 interval format format via "1939/1945".
+
+Open-ended date ranges can be written with ".." in place of the end date. For example, "2015-11/.." indicates a range beginning in November 2015 and with no specified final date. This is tentative and might be updated in future when ISO 8601 is officially updated.""" ;
+    owl:equivalentProperty dcterms:temporal ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:rangeIncludes schema:DateTime,
+        schema:Text,
+        schema:URL .
+
+schema:seller a rdf:Property ;
+    rdfs:label "seller" ;
+    rdfs:comment "An entity which offers (sells / leases / lends / loans) the services / goods.  A seller may also be a provider." ;
+    rdfs:subPropertyOf schema:participant ;
+    schema:domainIncludes schema:BuyAction,
+        schema:Demand,
+        schema:Flight,
+        schema:Offer,
+        schema:Order ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:spatialCoverage a rdf:Property ;
+    rdfs:label "spatialCoverage" ;
+    rdfs:comment """The spatialCoverage of a CreativeWork indicates the place(s) which are the focus of the content. It is a subproperty of
+      contentLocation intended primarily for more technical and detailed materials. For example with a Dataset, it indicates
+      areas that the dataset describes: a dataset of New York weather would have spatialCoverage which was the place: the state of New York.""" ;
+    rdfs:subPropertyOf schema:contentLocation ;
+    owl:equivalentProperty dcterms:spatial ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:rangeIncludes schema:Place .
+
+schema:step a rdf:Property ;
+    rdfs:label "step" ;
+    rdfs:comment "A single step item (as HowToStep, text, document, video, etc.) or a HowToSection." ;
+    schema:domainIncludes schema:HowTo ;
+    schema:rangeIncludes schema:CreativeWork,
+        schema:HowToSection,
+        schema:HowToStep,
+        schema:Text .
+
+schema:subEvent a rdf:Property ;
+    rdfs:label "subEvent" ;
+    rdfs:comment "An Event that is part of this event. For example, a conference event includes many presentations, each of which is a subEvent of the conference." ;
+    schema:domainIncludes schema:Event ;
+    schema:inverseOf schema:superEvent ;
+    schema:rangeIncludes schema:Event .
+
+schema:supply a rdf:Property ;
+    rdfs:label "supply" ;
+    rdfs:comment "A sub-property of instrument. A supply consumed when performing instructions or a direction." ;
+    rdfs:subPropertyOf schema:instrument ;
+    schema:domainIncludes schema:HowTo,
+        schema:HowToDirection ;
+    schema:rangeIncludes schema:HowToSupply,
+        schema:Text .
+
+schema:workFeatured a rdf:Property ;
+    rdfs:label "workFeatured" ;
+    rdfs:comment """A work featured in some event, e.g. exhibited in an ExhibitionEvent.
+       Specific subproperties are available for workPerformed (e.g. a play), or a workPresented (a Movie at a ScreeningEvent).""" ;
+    schema:domainIncludes schema:Event ;
+    schema:rangeIncludes schema:CreativeWork .
+
+schema:areaServed a rdf:Property ;
+    rdfs:label "areaServed" ;
+    rdfs:comment "The geographic area where a service or offered item is provided." ;
+    schema:domainIncludes schema:ContactPoint,
+        schema:DeliveryChargeSpecification,
+        schema:Demand,
+        schema:Offer,
+        schema:Organization,
+        schema:Service ;
+    schema:rangeIncludes schema:AdministrativeArea,
+        schema:GeoShape,
+        schema:Place,
+        schema:Text .
+
+schema:image a rdf:Property ;
+    rdfs:label "image" ;
+    rdfs:comment "An image of the item. This can be a [[URL]] or a fully described [[ImageObject]]." ;
+    schema:domainIncludes schema:Thing ;
+    schema:rangeIncludes schema:ImageObject,
+        schema:URL .
+
+schema:includedInDataCatalog a rdf:Property ;
+    rdfs:label "includedInDataCatalog" ;
+    rdfs:comment "A data catalog which contains this dataset." ;
+    schema:domainIncludes schema:Dataset ;
+    schema:inverseOf schema:dataset ;
+    schema:rangeIncludes schema:DataCatalog .
+
+schema:member a rdf:Property ;
+    rdfs:label "member" ;
+    rdfs:comment "A member of an Organization or a ProgramMembership. Organizations can be members of organizations; ProgramMembership is typically for individuals." ;
+    schema:domainIncludes schema:Organization,
+        schema:ProgramMembership ;
+    schema:inverseOf schema:memberOf ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:recipient a rdf:Property ;
+    rdfs:label "recipient" ;
+    rdfs:comment "A sub property of participant. The participant who is at the receiving end of the action." ;
+    rdfs:subPropertyOf schema:participant ;
+    schema:domainIncludes schema:AuthorizeAction,
+        schema:CommunicateAction,
+        schema:DonateAction,
+        schema:GiveAction,
+        schema:Message,
+        schema:PayAction,
+        schema:ReturnAction,
+        schema:SendAction,
+        schema:TipAction ;
+    schema:rangeIncludes schema:Audience,
+        schema:ContactPoint,
+        schema:Organization,
+        schema:Person .
+
+schema:workExample a rdf:Property ;
+    rdfs:label "workExample" ;
+    rdfs:comment "Example/instance/realization/derivation of the concept of this creative work. E.g. the paperback edition, first edition, or e-book." ;
+    schema:contributor <https://schema.org/docs/collab/bibex> ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:inverseOf schema:exampleOfWork ;
+    schema:rangeIncludes schema:CreativeWork .
+
+schema:description a rdf:Property ;
+    rdfs:label "description" ;
+    rdfs:comment "A description of the item." ;
+    owl:equivalentProperty dcterms:description ;
+    schema:domainIncludes schema:Thing ;
+    schema:rangeIncludes schema:Text,
+        schema:TextObject .
+
+schema:gtin a rdf:Property ;
+    rdfs:label "gtin" ;
+    rdfs:comment """A Global Trade Item Number ([GTIN](https://www.gs1.org/standards/id-keys/gtin)). GTINs identify trade items, including products and services, using numeric identification codes.
+
+The GS1 [digital link specifications](https://www.gs1.org/standards/Digital-Link/) express GTINs as URLs (URIs, IRIs, etc.). Details including regular expression examples can be found in, Section 6 of the GS1 URI Syntax specification; see also [schema.org tracking issue](https://github.com/schemaorg/schemaorg/issues/3156#issuecomment-1209522809) for schema.org-specific discussion. A correct [[gtin]] value should be a valid GTIN, which means that it should be an all-numeric string of either 8, 12, 13 or 14 digits, or a "GS1 Digital Link" URL based on such a string. The numeric component should also have a [valid GS1 check digit](https://www.gs1.org/services/check-digit-calculator) and meet the other rules for valid GTINs. See also [GS1's GTIN Summary](http://www.gs1.org/barcodes/technical/idkeys/gtin) and [Wikipedia](https://en.wikipedia.org/wiki/Global_Trade_Item_Number) for more details. Left-padding of the gtin values is not required or encouraged. The [[gtin]] property generalizes the earlier [[gtin8]], [[gtin12]], [[gtin13]], and [[gtin14]] properties.
+
+Note also that this is a definition for how to include GTINs in Schema.org data, and not a definition of GTINs in general - see the GS1 documentation for authoritative details.""" ;
+    rdfs:subPropertyOf schema:identifier ;
+    schema:domainIncludes schema:Demand,
+        schema:Offer,
+        schema:Product ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:Text,
+        schema:URL ;
+    schema:source <https://github.com/schemaorg/schemaorg/issues/2288> .
+
+schema:hasRepresentation a rdf:Property ;
+    rdfs:label "hasRepresentation" ;
+    rdfs:comment "A common representation such as a protein sequence or chemical structure for this entity. For images use schema.org/image." ;
+    schema:domainIncludes schema:BioChemEntity ;
+    schema:isPartOf <https://pending.schema.org> ;
+    schema:rangeIncludes schema:PropertyValue,
+        schema:Text,
+        schema:URL ;
+    schema:source <http://www.bioschemas.org> .
+
+schema:hasPart a rdf:Property ;
+    rdfs:label "hasPart" ;
+    rdfs:comment "Indicates an item or CreativeWork that is part of this item, or CreativeWork (in some sense)." ;
+    schema:contributor <https://schema.org/docs/collab/bibex> ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:inverseOf schema:isPartOf ;
+    schema:rangeIncludes schema:CreativeWork .
+
+schema:position a rdf:Property ;
+    rdfs:label "position" ;
+    rdfs:comment "The position of an item in a series or sequence of items." ;
+    schema:domainIncludes schema:CreativeWork,
+        schema:ListItem ;
+    schema:rangeIncludes schema:Integer,
+        schema:Text .
+
+schema:isPartOf a rdf:Property ;
+    rdfs:label "isPartOf" ;
+    rdfs:comment "Indicates an item or CreativeWork that this item, or CreativeWork (in some sense), is part of." ;
+    schema:domainIncludes schema:CreativeWork ;
+    schema:inverseOf schema:hasPart ;
+    schema:rangeIncludes schema:CreativeWork,
+        schema:URL .
+
+schema:instrument a rdf:Property ;
+    rdfs:label "instrument" ;
+    rdfs:comment "The object that helped the agent perform the action. E.g. John wrote a book with *a pen*." ;
+    schema:domainIncludes schema:Action ;
+    schema:rangeIncludes schema:Thing .
+
+schema:object a rdf:Property ;
+    rdfs:label "object" ;
+    rdfs:comment "The object upon which the action is carried out, whose state is kept intact or changed. Also known as the semantic roles patient, affected or undergoer (which change their state) or theme (which doesn't). E.g. John read *a book*." ;
+    schema:domainIncludes schema:Action ;
+    schema:rangeIncludes schema:Thing .
+
+schema:publishingPrinciples a rdf:Property ;
+    rdfs:label "publishingPrinciples" ;
+    rdfs:comment """The publishingPrinciples property indicates (typically via [[URL]]) a document describing the editorial principles of an [[Organization]] (or individual, e.g. a [[Person]] writing a blog) that relate to their activities as a publisher, e.g. ethics or diversity policies. When applied to a [[CreativeWork]] (e.g. [[NewsArticle]]) the principles are those of the party primarily responsible for the creation of the [[CreativeWork]].
+
+While such policies are most typically expressed in natural language, sometimes related information (e.g. indicating a [[funder]]) can be expressed using schema.org terminology.
+""" ;
+    schema:domainIncludes schema:CreativeWork,
+        schema:Organization,
+        schema:Person ;
+    schema:rangeIncludes schema:CreativeWork,
+        schema:URL .
+
+schema:location a rdf:Property ;
+    rdfs:label "location" ;
+    rdfs:comment "The location of, for example, where an event is happening, where an organization is located, or where an action takes place." ;
+    schema:domainIncludes schema:Action,
+        schema:Event,
+        schema:InteractionCounter,
+        schema:Organization ;
+    schema:rangeIncludes schema:Place,
+        schema:PostalAddress,
+        schema:Text,
+        schema:VirtualLocation .
+
+schema:participant a rdf:Property ;
+    rdfs:label "participant" ;
+    rdfs:comment "Other co-agents that participated in the action indirectly. E.g. John wrote a book with *Steve*." ;
+    schema:domainIncludes schema:Action ;
+    schema:rangeIncludes schema:Organization,
+        schema:Person .
+
+schema:identifier a rdf:Property ;
+    rdfs:label "identifier" ;
+    rdfs:comment """The identifier property represents any kind of identifier for any kind of [[Thing]], such as ISBNs, GTIN codes, UUIDs etc. Schema.org provides dedicated properties for representing many of these, either as textual strings or as URL (URI) links. See [background notes](/docs/datamodel.html#identifierBg) for more details.
+        """ ;
+    owl:equivalentProperty dcterms:identifier ;
+    schema:domainIncludes schema:Thing ;
+    schema:rangeIncludes schema:PropertyValue,
+        schema:Text,
+        schema:URL .
+

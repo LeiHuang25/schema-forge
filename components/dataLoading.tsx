@@ -1,57 +1,58 @@
-import React, { FC } from 'react';
-import * as $rdf from 'rdflib';
+import React, { FC, useState, useContext } from 'react';
+import Schema from '@/components/schema';
+import SchemaContext from '@/SchemaContext';
 
-type DataLoadingProps = {
-  setStore: React.Dispatch<React.SetStateAction<$rdf.IndexedFormula | null>>;
-};
+type DataLoaderProps = {};
 
-const DataLoading: FC<DataLoadingProps> = ({ setStore }) => {
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    const fileType = file?.name.split('.').pop()?.toLowerCase();
+const DataLoader: FC<DataLoaderProps> = () => {
+  const [loading, setLoading] = useState(false);
+  const {schema, setSchema} = useContext(SchemaContext);
 
-    if (!file || !fileType) {
-      return;
-    }
+  const handleLoadSchema = async () => {
+    setLoading(true);
+    const schemaInstance = new Schema(() => {
+      setLoading(false);
+      setSchema(schemaInstance);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const fileContent = e.target!.result as string;
-      const store = $rdf.graph();
-
-      try {
-        // Parse Turtle or JSON-LD file to rdflib store
-        if (fileType === 'jsonld') {
-          $rdf.parse(fileContent, store, 'http://example.com', 'application/ld+json');
-        } else if (fileType === 'ttl') {
-          $rdf.parse(fileContent, store, 'http://example.com', 'text/turtle');
-        } else {
-          console.error('Unsupported file type');
-          return;
-        }
-        
-        // Set the populated store in the parent component
-        setStore(store);
-      } catch (error) {
-        console.error("Failed to parse schema data:", error);
-      }
-    };
-
-    reader.readAsText(file);
+    });
+  };
+  const handleSaveProject = () => {
+    schema?.saveStateToLocalStorage();
+  };
+  const handleLoadProject = () => {
+    const schemaInstance = new Schema(() => {}, true);
+    schemaInstance.loadStateFromLocalStorage();
+    setSchema(schemaInstance);
   };
 
   return (
-    <div>
-      <label htmlFor="schemaFile">Upload a new schema:</label>
-      <input
-        type="file"
-        id="schemaFile"
-        name="schemaFile"
-        accept=".jsonld,.ttl"
-        onChange={handleFileUpload}
-      />
+    <div className="border border-gray-300 p-5 w-52">
+      <p className="mb-4">Project</p>
+      <button 
+        className="project-button bg-gray-300 px-4 py-2 mb-2 w-full" 
+        onClick={handleLoadSchema} 
+        disabled={loading}
+      >
+        Load Schema
+      </button>
+      <button 
+        className="project-button bg-gray-300 px-4 py-2 mb-2 w-full" 
+        onClick={handleSaveProject} 
+        disabled={loading || !schema}
+      >
+        Save Schema Project
+      </button>
+      <button 
+        className="project-button bg-gray-300 px-4 py-2 w-full" 
+        onClick={handleLoadProject} 
+        disabled={loading}
+      >
+        Load Schema Project
+      </button>
+      {loading && <div>Loading...</div>}
     </div>
   );
 };
 
-export default DataLoading;
+
+export default DataLoader;
