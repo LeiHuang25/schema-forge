@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 //import * as joint from 'jointjs';
-import { dia, ui, shapes } from '@clientio/rappid';
+//import { dia, ui, shapes } from '@clientio/rappid';
 import * as $rdf from 'rdflib';
 import * as rdfHelpers from '@/components/rdfHelpers';
 import { createDiskAndLink } from '@/components/graph';
+import * as d3 from 'd3';
 
 function removeTooltip() {
     const oldTooltip = document.getElementById("tooltip");
-        if (oldTooltip) {
-            oldTooltip.remove();
-        }
+      if (oldTooltip) {
+          oldTooltip.remove();
+      }
 }
 
 type DiagramProps = {
@@ -18,15 +19,180 @@ type DiagramProps = {
   setTableData: (data: { [key: string]: string }) => void;
 }
 
-    const Diagram: React.FC<DiagramProps> = ({ selectedClass, store, setTableData }) => {
-        let currentDisk: shapes.standard.Circle | null = null;
+
+    const Diagram = ({ selectedClass, store, setTableData }: DiagramProps) => {
+        let currentDisk = null;
         let createdRelatedDisks: string[] = [];
-        let createdDiskById: { [id: string]: string } = {};
+        let createdDiskById = {};
         let lastClickedClass: string | null = null;
 
         const canvas = useRef(null);
 
     useEffect(() => {
+      //1
+
+    //creer des element svg
+    const width = 800;
+    const height = 600;
+    const svg = d3.select('#canvas')
+      .append('svg')
+      .attr('width',width)
+      .attr('height',height);
+    const container = svg.append('g');
+    const data = [
+      { x: 50, y: 50 },
+      { x: 100, y: 100 },
+      { x: 150, y: 150 },
+    ];
+
+    const circles = container.selectAll("circle")
+      .data(data)
+      .enter()
+      .append("circle")
+      .attr("cx", (d: { x: number; y: number }) => d.x)
+      .attr("cy", (d: { x: number; y: number }) => d.y)
+      .attr("r", 10)
+      .attr("fill", "white");
+
+    //zoom
+    const zoom = d3.zoom()
+      .scaleExtent([0.4,3])
+      .on('zoom',function(){
+        svg.attr("transform", d3.event.transform);
+      });
+
+    svg.call(zoom);
+
+    //Panning
+    const pan = d3.pan()
+      .on('start',start)
+      .on('pan',panning)
+      .on('end',end);
+
+    svg.call(pan);
+
+    function start(this: SVGCircleElement){
+      d3.select(this).classed('active',true);
+    }
+
+    function panning(this: SVGCircleElement,event: d3.DragEvent<SVGCircleElement,{x: number; y: number}>,d:{ x: number; y: number}){
+      d3.select(this).attr('cx', d.x = event.x).attr("cy", d.y = event.y);
+    }
+
+    function end(this: SVGCircleElement){
+      d3.select(this).classed('active',false);
+    }
+
+    if (selectedClass) {
+      //2
+      const disk = container.append('circle')
+      .attr('cx',width / 2)
+      .attr('cy',height / 2)
+      .attr('r',50)
+      .style('fill','white')
+      .style('cursor','pointer');
+
+      disk.on('click',function(){
+        const clickedDiskId = this.id;
+        const clickedClass = createdDiskById[clickedDiskId];
+        removeTooltip();
+        container.selectAll('circle').remove();
+
+      const showTooltip = (event,data) => {
+        const tooltip = d3.select("body")
+          .append("div")
+          .attr("id", "tooltip")
+          .style("position", "fixed")
+          .style("left", `${event.clientX + 10}px`)
+          .style("top", `${event.clientY + 10}px`);
+
+        //tailwind
+        tooltip.classed("bg-white bg-opacity-90 rounded-lg shadow-lg p-4 border border-gray-300", true);
+
+        const table = tooltip.append("table")
+          .classed("min-w-full", true);
+        const tbody = table.append("tbody");
+
+        Object.keys(data).forEach(key => {
+          const tr = tbody.append("tr")
+            .classed("hover:bg-gray-100", true);
+
+          const tdKey = tr.append("td")
+            .classed("py-1 px-2 text-left", true)
+            .text(key);
+
+          const tdValue = tr.append("td")
+            .classed("py-1 px-2 text-left", true)
+            .text(data[key]);
+        });
+      };
+        if (clickedClass) {
+          const classNode = $rdf.namedNode(clickedClass);
+          const tableData1 = rdfHelpers.getDirectProperties(store, classNode);
+          const tableData2 = rdfHelpers.getDataProperties(store, classNode);
+          const tableData = Object.assign({}, tableData1, tableData2);
+          setTableData(tableData);
+
+          if (lastClickedClass === clickedClass) {
+            showTooltip(d3.event, tableData);
+          }
+
+          if (!createdRelatedDisks.includes(clickedDiskId)) {
+          // Mark this disk as "expanded"
+            createdRelatedDisks.push(clickedDiskId);
+
+            const clickedNode = $rdf.namedNode(clickedClass);
+            const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
+            const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
+
+            outgoingConnectedClasses.forEach(({ target, propertyUri }, index) => {
+                createDiskAndLink(
+                  graph,
+                  target,
+                  propertyUri,
+                  'outgoing',
+                  createdDiskById,
+                  createdRelatedDisks,
+                  cellView,
+                  index,
+                  store,
+                  clickedDiskId
+                );
+            });
+
+            incomingConnectedClasses.forEach(({ target, propertyUri }, index) => {
+              createDiskAndLink(
+                graph,
+                target,
+                propertyUri,
+                'incoming',
+                createdDiskById,
+                createdRelatedDisks,
+                cellView,
+                index,
+                store,
+                clickedDiskId
+              );
+            });
+          };
+          lastClickedClass = clickedClass;
+        }
+      });
+    }
+    return () => {
+      svg.remove();
+    };
+  }, [selectedClass, store, setTableData]);
+
+  return (
+    <div id="paper" ref={canvas}/>
+  );
+};
+
+export default Diagram;
+
+
+/* 1
       const graph = new dia.Graph();
       const paper = new dia.Paper({
         model: graph,
@@ -38,14 +204,14 @@ type DiagramProps = {
       async: true,
       sorting: dia.Paper.sorting.APPROX,
       cellViewNamespace: shapes
-  });
+  });    //initialisation graph
 
       const scroller = new ui.PaperScroller({
         paper,
         autoResizePaper: true,
         cursor: 'grab',
-        
-    });
+
+    });   //scroller
 
     canvas.current.appendChild(scroller.el);
     scroller.lock();
@@ -60,13 +226,14 @@ type DiagramProps = {
       removeTooltip();
       scroller.startPanning(event);
     });
-    
+
     // Clear existing cells and previously created related disks
     graph.clear();
-    createdRelatedDisks = [];
+    createdRelatedDisks = [];*/
 
-    if (selectedClass) {
-      const disk = new shapes.standard.Circle({
+
+  /* 2
+        const disk = new shapes.standard.Circle({
         size: { width: 100, height: 100 },
         attrs: {
           label: {
@@ -126,68 +293,4 @@ type DiagramProps = {
         const clickedClass = createdDiskById[clickedDiskId];
         removeTooltip();
         graph.removeCells(graph.getElements().filter(element => element.attributes.type === 'standard.Rectangle'));
-
-        if (clickedClass) {
-            const classNode = $rdf.namedNode(clickedClass);
-            const tableData1=rdfHelpers.getDirectProperties(store, classNode);
-            const tableData2=rdfHelpers.getDataProperties(store, classNode);
-            const tableData=Object.assign({}, tableData1, tableData2);
-            setTableData(tableData);
-            if (lastClickedClass === clickedClass) {
-              showTooltip(evt as unknown as MouseEvent, tableData);
-            }
-
-        if (!createdRelatedDisks.includes(clickedDiskId)) {
-            // Mark this disk as "expanded"
-            createdRelatedDisks.push(clickedDiskId);
-
-            const clickedNode = $rdf.namedNode(clickedClass);
-            const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-            const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
-
-            outgoingConnectedClasses.forEach(({ target, propertyUri }, index) => {
-                createDiskAndLink(
-                    graph,
-                    target,
-                    propertyUri,
-                    'outgoing',
-                    createdDiskById,
-                    createdRelatedDisks,
-                    cellView,
-                    index,
-                    store,
-                    clickedDiskId
-                );
-                });
-
-                incomingConnectedClasses.forEach(({ target, propertyUri }, index) => {
-                createDiskAndLink(
-                    graph,
-                    target,
-                    propertyUri,
-                    'incoming',
-                    createdDiskById,
-                    createdRelatedDisks,
-                    cellView,
-                    index,
-                    store,
-                    clickedDiskId
-                );
-              });
-        };
-        lastClickedClass = clickedClass;
-      }
-    });
-  }
-  return () => {
-    scroller.remove();
-    paper.remove();
-  };
-}, [selectedClass, store, setTableData]);
-
-  return (
-    <div id="paper" ref={canvas}/>
-  );
-};
-
-export default Diagram;
+        */
