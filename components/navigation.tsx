@@ -23,7 +23,7 @@ const DropdownComponent: FC<DropdownComponentProps> = ({store, selectedClass, se
         }
     });
   }
-    
+
       return (
         <div>
           <div>

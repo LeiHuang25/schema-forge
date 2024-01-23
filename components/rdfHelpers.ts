@@ -1,11 +1,13 @@
 import * as $rdf from 'rdflib';
 
+//stocker le label d'un uri dans rdf 'store' par rdfs:label
 export function getLabelFromURI(store, uri) {
     const node = $rdf.namedNode(uri);
     const labelTerm = store.any(node, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'));
     return labelTerm ? labelTerm.value : uri;
 }
 
+// retourner toutes les attributes d'un targetmarker clickedNode
 export function getOutgoingConnectedClasses(store, clickedNode) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
@@ -28,6 +30,7 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
     }));
   }
 
+// retourner toutes les attributes d'un sourcemarker clickedNode
 export function getIncomingConnectedClasses(store, clickedNode) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
@@ -50,6 +53,7 @@ export function getIncomingConnectedClasses(store, clickedNode) {
     }));
   }
 
+//retourner les attributs direct pour chaque propriete
   export function getDirectProperties(store: $rdf.IndexedFormula, node: $rdf.NamedNode): { [key: string]: string | number } {
     const directProperties: { [key: string]: string | number } = {};
 
@@ -83,6 +87,6 @@ export function getIncomingConnectedClasses(store, clickedNode) {
       dataProperties[label[0]? label[0].object.value : st.subject.uri] = propertyRange[0].object.value.split("#").pop();
     }
   })
-  
+
   return dataProperties;
 };

@@ -1,11 +1,14 @@
 //import * as joint from 'jointjs';
 import * as d3 from 'd3';
+import { Selection } from 'd3-selection';
+import { DefaultLinkObject } from 'd3-shape';
 import * as $rdf from 'rdflib';
 import { getLabelFromURI, getOutgoingConnectedClasses, getIncomingConnectedClasses } from '@/components/rdfHelpers';
 
 type Direction = 'incoming' | 'outgoing';
 type CreatedDiskById = { [id: string]: string };
 type CreatedRelatedDisks = string[];
+
 
 export const createDiskAndLink = (
     svg: d3.Selection<SVGSVGElement,unknown,null,undefined>,
@@ -29,20 +32,20 @@ export const createDiskAndLink = (
     createdRelatedDisks.push(newNode);
     createdDiskById[relatedDisk.attr('id')] = newNode;
 
-    const linkAttributes = d3.linkHorizontal()
-      .x(d => d.x)
-      .y(d => d.y);
+    const linkAttributes = d3.linkHorizontal<DefaultLinkObject, DefaultLinkObject>()
+      .x(d => d[0])
+      .y(d => d[1]);
+
+    const sourceMarker = [Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cx')), Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cy'))];
+    const targetMarker = [Number(relatedDisk.attr('cx')), Number(relatedDisk.attr('cy'))];
+    const linkPath = linkAttributes({ source: sourceMarker, target: targetMarker});
 
     const link = svg.append('line')
-    .attr('class','link')
-    .attr('d',() => {
-      const sourceMarker = { x: +svg.select('circle[id=${clickedDiskId}]').attr('cx'), y: +svg.select('circle[id=${clickedDiskId}]`).attr('cy')')};
-      const targetMarker = { x: +relatedDisk.attr('cx'), y: +relatedDisk.attr('cy')};
-      return linkAttributes({ source: sourceMarker, target: targetMarker});
-    })
+      .attr('class','link')
+      .attr('d', linkPath)
       .style('stroke', '#333333')
       .style('stroke-width', 2)
-      .attr('marker-end', direciton === 'outgoing' ? 'url(#arrowhead-outgoing)' : 'url(#arrowhead-incoming)');
+      .attr('marker-end', direction === 'outgoing' ? `url(#arrowhead-outgoing)` : `url(#arrowhead-incoming)`);
 
 
     svg.append('text')
