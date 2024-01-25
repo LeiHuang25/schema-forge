@@ -23,7 +23,7 @@ type DiagramProps = {
     const Diagram = ({ selectedClass, store, setTableData }: DiagramProps) => {
         let currentDisk = null;
         let createdRelatedDisks: string[] = [];
-        let createdDiskById = {};
+        let createdDiskById: { [key: string]: string } = {};
         let lastClickedClass: string | null = null;
 
         const canvas = useRef(null);
@@ -56,26 +56,26 @@ type DiagramProps = {
 
     //zoom
     const zoom = d3.zoom()
-      .scaleExtent([0.4,3])
-      .on('zoom',function(){
-        svg.attr("transform", d3.event.transform);
+      .scaleExtent([0.4, 3])
+      .on('zoom',(event) => {
+        container.attr('transform', event.transform);
       });
 
     svg.call(zoom);
 
     //Panning
-    const pan = d3.pan()
+    /*const pan = d3.pan()
       .on('start',start)
       .on('pan',panning)
       .on('end',end);
 
-    svg.call(pan);
+    svg.call(pan);*/
 
     function start(this: SVGCircleElement){
       d3.select(this).classed('active',true);
     }
 
-    function panning(this: SVGCircleElement,event: d3.DragEvent<SVGCircleElement,{x: number; y: number}>,d:{ x: number; y: number}){
+    function panning(this: SVGCircleElement,event: d3.D3DragEvent<SVGCircleElement,{x: number; y: number}, any>,d:{ x: number; y: number}){
       d3.select(this).attr('cx', d.x = event.x).attr("cy", d.y = event.y);
     }
 
@@ -98,7 +98,7 @@ type DiagramProps = {
         removeTooltip();
         container.selectAll('circle').remove();
 
-      const showTooltip = (event,data) => {
+      const showTooltip = (event: React.MouseEvent<HTMLElement>,data: { [key: string]: string }) => {
         const tooltip = d3.select("body")
           .append("div")
           .attr("id", "tooltip")
@@ -126,15 +126,15 @@ type DiagramProps = {
             .text(data[key]);
         });
       };
-        if (clickedClass) {
+        if (clickedClass && store) {
           const classNode = $rdf.namedNode(clickedClass);
-          const tableData1 = rdfHelpers.getDirectProperties(store, classNode);
-          const tableData2 = rdfHelpers.getDataProperties(store, classNode);
+          const tableData1 = rdfHelpers.getDirectProperties(store, classNode) as { [key: string]: string };
+          const tableData2 = rdfHelpers.getDataProperties(store, classNode) as { [key: string]: string };
           const tableData = Object.assign({}, tableData1, tableData2);
           setTableData(tableData);
 
           if (lastClickedClass === clickedClass) {
-            showTooltip(d3.event, tableData);
+            showTooltip(d3.event as React.MouseEvent<HTMLElement>, tableData);
           }
 
           if (!createdRelatedDisks.includes(clickedDiskId)) {
@@ -250,8 +250,8 @@ export default Diagram;
       const paperWidth = paper.options.width as number;
       const paperHeight = paper.options.height as number;
       disk.position((paperWidth - disk.attributes.size.width) / 2, (paperHeight - disk.attributes.size.height) / 2);
-    
-      const showTooltip = (e: MouseEvent, data: { [key: string]: string }) => {      
+
+      const showTooltip = (e: MouseEvent, data: { [key: string]: string }) => {
         const tooltip = document.createElement("div");
         tooltip.id = "tooltip";
         tooltip.style.position = "fixed";

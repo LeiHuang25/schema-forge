@@ -14,7 +14,7 @@ const baseURI = process.env.NODE_ENV === 'production'
 function Browser() {
   const workspaceRef = useRef(null);
   const [selectedClass, setSelectedClass] = useState<any | undefined>();
-  const [store, setStore] = useState<$rdf.IndexedFormula | null>(null);
+  const [store, setStore] = useState<$rdf.IndexedFormula | undefined>(undefined);
   const [tableData, setTableData] = useState<{ [key: string]: string }>({});
 
   return (

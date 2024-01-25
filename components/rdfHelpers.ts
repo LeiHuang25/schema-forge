@@ -1,14 +1,14 @@
 import * as $rdf from 'rdflib';
 
 //stocker le label d'un uri dans rdf 'store' par rdfs:label
-export function getLabelFromURI(store, uri) {
+export function getLabelFromURI(store: $rdf.Store, uri: string) {
     const node = $rdf.namedNode(uri);
     const labelTerm = store.any(node, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'));
     return labelTerm ? labelTerm.value : uri;
 }
 
 // retourner toutes les attributes d'un targetmarker clickedNode
-export function getOutgoingConnectedClasses(store, clickedNode) {
+export function getOutgoingConnectedClasses(store: $rdf.Store, clickedNode: $rdf.Node): { target: $rdf.term; propertyUri: string }[] {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
       null,
@@ -26,12 +26,12 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
       return typeStatements.some(typeStmt => typeStmt.object.equals(classTypeNode));
     }).map((stmt) => ({
       target: store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range')),
-      propertyUri: stmt.subject.uri
+      propertyUri: stmt.subject.value
     }));
   }
 
 // retourner toutes les attributes d'un sourcemarker clickedNode
-export function getIncomingConnectedClasses(store, clickedNode) {
+export function getIncomingConnectedClasses(store: $rdf.Store, clickedNode: $rdf.Node) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
       null,
@@ -49,7 +49,7 @@ export function getIncomingConnectedClasses(store, clickedNode) {
       return typeStatements.some(typeStmt => typeStmt.object.equals(classTypeNode));
     }).map((stmt) => ({
       target: store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain')),
-      propertyUri: stmt.subject.uri
+      propertyUri: stmt.subject.value
     }));
   }
 
@@ -84,7 +84,9 @@ export function getIncomingConnectedClasses(store, clickedNode) {
     const label = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'), null);
     console.log("label: ", label)
     if(propertyRange.length>0 && propertyRange[0].object) {
-      dataProperties[label[0]? label[0].object.value : st.subject.uri] = propertyRange[0].object.value.split("#").pop();
+      const propertyName = label.length > 0 ? label[0].object.value : st.subject.value;
+      const propertyRangeValue = propertyRange[0].object.value.split("#").pop() as string | number;
+      dataProperties[propertyName] = propertyRangeValue;
     }
   })
 
