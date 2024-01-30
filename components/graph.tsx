@@ -5,40 +5,52 @@ import { DefaultLinkObject } from 'd3-shape';
 import * as $rdf from 'rdflib';
 import { getLabelFromURI, getOutgoingConnectedClasses, getIncomingConnectedClasses } from '@/components/rdfHelpers';
 
+interface MyDefaultLinkObject {
+  source: { x: number; y: number };
+  target: { x: number; y: number };
+}
+
 type Direction = 'incoming' | 'outgoing';
 type CreatedDiskById = { [id: string]: string };
 type CreatedRelatedDisks = string[];
 
 
 export const createDiskAndLink = (
-    svg: d3.Selection<SVGSVGElement,unknown,null,undefined>,
+    svg: d3.Selection<SVGSVGElement,unknown,null,undefined> | null,
+    clickedDiskId: string,
     newNode: string,
     property: string,
     direction: Direction,
     createdDiskById: CreatedDiskById,
     createdRelatedDisks: CreatedRelatedDisks,
-    clickedDiskId: string
 ): void => {
-    const newNodeClass = Object.values(createdDiskById).includes(newNode);
+  if (!svg) {
+    console.error('SVG element is null.');
+    return;
+  }
 
-    if (!newNodeClass) {
+  const newNodeClass = Object.values(createdDiskById).includes(newNode);
 
-        const relatedDisk = svg.append('circle')
-        .attr('cx',150)
-        .attr('cy',(createdRelatedDisks.length * 150)+ 150 )
-        .attr('r',50)
-        .style('fill','#FFFFFF')
+  if (!newNodeClass) {
+    const relatedDisk = svg.append('circle')
+      .attr('cx',150)
+      .attr('cy',(createdRelatedDisks.length * 150)+ 150 )
+      .attr('r',50)
+      .style('fill','#FFFFFF')
 
     createdRelatedDisks.push(newNode);
     createdDiskById[relatedDisk.attr('id')] = newNode;
 
-    const linkAttributes = d3.linkHorizontal<DefaultLinkObject, DefaultLinkObject>()
-      .x(d => d[0])
-      .y(d => d[1]);
+    const linkAttributes = d3.linkHorizontal<MyDefaultLinkObject, MyDefaultLinkObject>()
+      .x(d => d.source.x)
+      .y(d => d.source.y);
 
-    const sourceMarker = [Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cx')), Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cy'))];
-    const targetMarker = [Number(relatedDisk.attr('cx')), Number(relatedDisk.attr('cy'))];
-    const linkPath = linkAttributes({ source: sourceMarker, target: targetMarker});
+    const sourceMarker = [Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cx')),Number(svg.select(`circle[id=${clickedDiskId}]`).attr('cy'))];
+    const targetMarker = [Number(relatedDisk.attr('cx')),Number(relatedDisk.attr('cy'))];
+    const linkPath = linkAttributes({
+      source: sourceMarker,
+      target: targetMarker,
+    });
 
     const link = svg.append('line')
       .attr('class','link')

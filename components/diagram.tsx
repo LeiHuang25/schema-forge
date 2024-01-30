@@ -20,112 +20,119 @@ type DiagramProps = {
 }
 
 
-    const Diagram = ({ selectedClass, store, setTableData }: DiagramProps) => {
-        let currentDisk = null;
-        let createdRelatedDisks: string[] = [];
-        let createdDiskById: { [key: string]: string } = {};
-        let lastClickedClass: string | null = null;
+const Diagram = ({ selectedClass, store, setTableData }: DiagramProps) => {
+  let currentDisk = null;
+  let createdRelatedDisks: string[] = [];
+  let createdDiskById: { [key: string]: string } = {};
+  let lastClickedClass: string | null = null;
 
-        const canvas = useRef(null);
+  const canvas = useRef(null);
 
-    useEffect(() => {
+  useEffect(() => {
+
+
+    //creer des element
+    let zoom:d3.ZoomBehavior<SVGSVGElement, unknown>;
+    let graph: d3.Selection<SVGSVGElement, unknown, HTMLElement, any> | null = d3.select('your-selector');
+
+    let isPanning = false; //pour voir si il est en traine de panning
+    let startTransform: d3.ZoomTransform | undefined;   //stocker l'etat de start panning
+
+    if (graph) {
       //1
+      const paper = graph.append('g');
 
-    //creer des element svg
-    const width = 800;
-    const height = 600;
-    const svg = d3.select('#canvas')
-      .append('svg')
-      .attr('width',width)
-      .attr('height',height);
-    const container = svg.append('g');
-    const data = [
-      { x: 50, y: 50 },
-      { x: 100, y: 100 },
-      { x: 150, y: 150 },
-    ];
+      const scroller = d3.select('body').append('div').classed('paper-scroller',true);
 
-    const circles = container.selectAll("circle")
-      .data(data)
-      .enter()
-      .append("circle")
-      .attr("cx", (d: { x: number; y: number }) => d.x)
-      .attr("cy", (d: { x: number; y: number }) => d.y)
-      .attr("r", 10)
-      .attr("fill", "white");
-
-    //zoom
-    const zoom = d3.zoom()
-      .scaleExtent([0.4, 3])
-      .on('zoom',(event) => {
-        container.attr('transform', event.transform);
+      //zoom
+      zoom = d3.zoom<SVGSVGElement, unknown>()
+        .scaleExtent([0.4, 3])
+        .on('zoom',(event) => {
+          paper.attr('transform', event.transform);
       });
 
-    svg.call(zoom);
+      graph.call(zoom);
 
-    //Panning
-    /*const pan = d3.pan()
-      .on('start',start)
-      .on('pan',panning)
-      .on('end',end);
+      graph.on('wheel',(event) => {
+        event.preventDefault();
+        const delta = event.deltaY *0.005;
+        const scale = d3.zoomTransform(graph!.node()).k;
+        const newScale = scale + delta;
+        graph.transition().duration(200).call(zoom.scaleTo,newScale);
+      });
 
-    svg.call(pan);*/
+      //Panning
+      graph.on('mousedown',(event) => {
+        isPanning = true;
+        startTransform = d3.zoomTransform(graph!.node());
+        graph.on('mousemove',Mousemove);
+        graph.on('mouseup',Mouseup);
+      });
 
-    function start(this: SVGCircleElement){
-      d3.select(this).classed('active',true);
+      graph.selectAll('*').remove();
     }
 
-    function panning(this: SVGCircleElement,event: d3.D3DragEvent<SVGCircleElement,{x: number; y: number}, any>,d:{ x: number; y: number}){
-      d3.select(this).attr('cx', d.x = event.x).attr("cy", d.y = event.y);
+    function Mousemove(event: MouseEvent){
+      const pointer = d3.pointer(event);
+
+      if (isPanning && startTransform && graph) {
+        const currentTransform = d3.zoomTransform(graph!.node());
+        const dx = pointer[0] - startTransform.invertX(0);
+        const dy = pointer[1] - startTransform.invertY(0);
+        graph!.call(zoom.transform, d3.zoomIdentity.translate(dx,dy).scale(currentTransform.k));
+      }
     }
 
-    function end(this: SVGCircleElement){
-      d3.select(this).classed('active',false);
+    function Mouseup() {
+      isPanning = false;
+      graph!.on('mousemove',null);
+      graph!.on('mouseup',null);
     }
 
+    let paper2: d3.Selection<SVGGElement, unknown, HTMLElement, any> | null = d3.select('#your-selector');
     if (selectedClass) {
       //2
-      const disk = container.append('circle')
-      .attr('cx',width / 2)
-      .attr('cy',height / 2)
+      const disk = paper2.append('circle')
+      .attr('cx',100)
+      .attr('cy',100)
       .attr('r',50)
-      .style('fill','white')
-      .style('cursor','pointer');
+      .style('fill','white');
 
       disk.on('click',function(){
         const clickedDiskId = this.id;
         const clickedClass = createdDiskById[clickedDiskId];
         removeTooltip();
-        container.selectAll('circle').remove();
+        graph.selectAll('circle').remove();
 
-      const showTooltip = (event: React.MouseEvent<HTMLElement>,data: { [key: string]: string }) => {
-        const tooltip = d3.select("body")
-          .append("div")
-          .attr("id", "tooltip")
-          .style("position", "fixed")
-          .style("left", `${event.clientX + 10}px`)
-          .style("top", `${event.clientY + 10}px`);
+        const showTooltip = (event: React.MouseEvent<HTMLElement>,data: { [key: string]: string }) => {
+          const tooltip = d3.select("body")
+            .append("div")
+            .attr("id", "tooltip")
+            .style("position", "fixed")
+            .style("left", `${event.clientX + 10}px`)
+            .style("top", `${event.clientY + 10}px`);
 
-        //tailwind
-        tooltip.classed("bg-white bg-opacity-90 rounded-lg shadow-lg p-4 border border-gray-300", true);
+          //tailwind
+          tooltip.classed("bg-white bg-opacity-90 rounded-lg shadow-lg p-4 border border-gray-300", true);
 
-        const table = tooltip.append("table")
-          .classed("min-w-full", true);
-        const tbody = table.append("tbody");
+          const table = tooltip.append("table")
+            .classed("min-w-full", true);
+          const tbody = table.append("tbody");
 
-        Object.keys(data).forEach(key => {
-          const tr = tbody.append("tr")
-            .classed("hover:bg-gray-100", true);
+          Object.keys(data).forEach(key => {
+            const tr = tbody.append("tr")
+              .classed("hover:bg-gray-100", true);
 
-          const tdKey = tr.append("td")
-            .classed("py-1 px-2 text-left", true)
-            .text(key);
+            const tdKey = tr.append("td")
+              .classed("py-1 px-2 text-left", true)
+              .text(key);
 
-          const tdValue = tr.append("td")
-            .classed("py-1 px-2 text-left", true)
-            .text(data[key]);
-        });
-      };
+            const tdValue = tr.append("td")
+              .classed("py-1 px-2 text-left", true)
+              .text(data[key]);
+          });
+        };
+
         if (clickedClass && store) {
           const classNode = $rdf.namedNode(clickedClass);
           const tableData1 = rdfHelpers.getDirectProperties(store, classNode) as { [key: string]: string };
@@ -134,7 +141,7 @@ type DiagramProps = {
           setTableData(tableData);
 
           if (lastClickedClass === clickedClass) {
-            showTooltip(d3.event as React.MouseEvent<HTMLElement>, tableData);
+            showTooltip((d3 as any).event as React.MouseEvent<HTMLElement>, tableData);
           }
 
           if (!createdRelatedDisks.includes(clickedDiskId)) {
@@ -146,32 +153,26 @@ type DiagramProps = {
             const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
 
             outgoingConnectedClasses.forEach(({ target, propertyUri }, index) => {
-                createDiskAndLink(
-                  graph,
-                  target,
-                  propertyUri,
-                  'outgoing',
-                  createdDiskById,
-                  createdRelatedDisks,
-                  cellView,
-                  index,
-                  store,
-                  clickedDiskId
-                );
+              createDiskAndLink(
+                graph,
+                clickedDiskId,
+                target,
+                propertyUri,
+                'outgoing',
+                createdDiskById,
+                createdRelatedDisks
+              );
             });
 
             incomingConnectedClasses.forEach(({ target, propertyUri }, index) => {
               createDiskAndLink(
                 graph,
+                clickedDiskId,
                 target,
                 propertyUri,
                 'incoming',
                 createdDiskById,
                 createdRelatedDisks,
-                cellView,
-                index,
-                store,
-                clickedDiskId
               );
             });
           };
@@ -180,7 +181,7 @@ type DiagramProps = {
       });
     }
     return () => {
-      svg.remove();
+      graph.remove();
     };
   }, [selectedClass, store, setTableData]);
 
