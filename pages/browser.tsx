@@ -6,6 +6,7 @@ import DropdownComponent from '@/components/navigation';
 import Diagram from '@/components/diagram';
 import DataLoading from '@/components/dataLoading';
 import TableComponent from '@/components/tableComponent';
+import { getStaticPaths } from 'next';
 
 const baseURI = process.env.NODE_ENV === 'production'
     ? 'https://your-production-domain.com/'   // replace with your production domain
