@@ -147,9 +147,6 @@ export const createDiskAndLink = (
     // 更新相关文本的位置
     labelText.attr('x', newX - 25).attr('y', newY);
 
-    // 更新newNode的位置
-    newNode.value = `${newNode.value.substring(0, newNode.value.lastIndexOf('/') + 1)}${newX},${newY}`;
-  }
 
   // 更新连接线的位置
   function updateLink() {
