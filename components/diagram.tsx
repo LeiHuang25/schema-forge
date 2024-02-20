@@ -10,14 +10,14 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
     useEffect(() => {
         const svg = d3.select(svgRef.current)
-            .attr('width', 500)
-            .attr('height', 500);
+            .attr('width', '100%')
+            .attr('height', '100%');
 
         const group = svg.append('g');
 
         group.append('rect')
-            .attr('width', 800)
-            .attr('height', 600)
+            .attr('width', '100%')
+            .attr('height', '100%')
             .attr('fill', 'lightgray');
 
         const zoom = d3.zoom()
@@ -29,16 +29,16 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
         svg.call(zoom);
 
         return () => {
-            svg.selectAll('*').remove(); 
-            svg.remove(); 
+            svg.selectAll('*').remove();
+            svg.remove();
         };
     }, []);
 
     useEffect(() => {
         if (selectedClass) {
-            const startX = 100; 
-            const startY = 100; 
-            const circleRadius = 50; 
+            const startX = 100;
+            const startY = 100;
+            const circleRadius = 50;
             const svg = d3.select(svgRef.current);
             const group = svg.select('g');
 
@@ -79,27 +79,48 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                     .attr('y', newY);
 
                 // 更新与主类相关的连线位置
-                updateMainClassRelatedLines(newX, newY);
+                updateMainClassRelatedLines(newX, newY,selectedClass);
             }
         }
     }, [selectedClass]);
 
-    function updateMainClassRelatedLines(newX, newY) {
-        // 遍历所有与主类相关的连线，更新它们的位置
+    function updateMainClassRelatedLines(newX, newY, nodeId) {
+        // 遍历所有连接线
+        d3.selectAll('.link-text').each(function() {
+          const text = d3.select(this);
+          const textNodeId = text.attr('nodeId');
+          const textStartId = text.attr('startId');
+    
+        
         d3.selectAll('.link').each(function() {
             const line = d3.select(this);
-            const sourceX = newX;
-            const sourceY = newY;
-            const targetX = +line.attr('x2');
-            const targetY = +line.attr('y2');
-            const midX = (sourceX + targetX) / 2;
-            const midY = (sourceY + targetY) / 2;
-            const linkPath = `M${sourceX},${sourceY} L${targetX},${targetY}`;
-            line.attr('d', linkPath);
-            // 更新连接线上文字的位置
-            line.select('.link-text').attr('x', midX).attr('y', midY);
+            const startId = line.attr('startId');
+            const endId = line.attr('nodeId');
+    
+            // 检查连接线的起点或终点是否与所选圆圈相匹配
+            if (startId === nodeId || endId === nodeId) {
+                // 获取连接线的路径属性
+                const linkPath = line.attr('d');
+    
+                // 使用正则表达式提取终点坐标
+                const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
+                // 更新连接线的路径
+                const updatedLinkPath = `M${newX},${newY} L${targetX},${targetY}`;
+                line.attr('d', updatedLinkPath);
+    
+                // 更新连接线上文字的位置
+                if (endId === textNodeId && startId === textStartId) {
+                  const midX = (parseInt(newX) + parseInt(targetX)) / 2;
+                  const midY = (parseInt(newY) + parseInt(targetY)) / 2;
+                  line.attr('d', updatedLinkPath);
+                  text.attr('x', midX).attr('y', midY);
+              }
+            }
         });
-    }
+    })}
+    
+    
+    
 
     function displayContextMenu(event, classId) {
         event.preventDefault();
@@ -175,34 +196,49 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 console.error('No class selected or RDF store is not available.');
                 return;
             }
+    
+            // 使用 Set 来存储已经出现过的 target.value
+            const seenValues = new Set();
+            seenValues.add(selectedClass)
+    
             const clickedNode = $rdf.namedNode(classId);
             console.log(clickedNode);
             const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
             console.log(incomingConnectedClasses);
-
+    
             incomingConnectedClasses.forEach(({ target, propertyUri }) => {
-              const selectedCircle =d3.select(`circle[classId="${classId}"]`)   ;
-              console.log(selectedCircle);
-              const cxValue = +selectedCircle.attr('cx');
-              const cyValue = +selectedCircle.attr('cy');
-              console.log(cxValue,cyValue);
-
-                createDiskAndLink(
-                    d3.select(svgRef.current),
-                    target,
-                    propertyUri,
-                    'incoming',
-                    target.value,
-                    { x: cxValue, y: cyValue},  
-                    store,
-                    mainClassRef
-                );
+                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                console.log(selectedCircle);
+                const cxValue = +selectedCircle.attr('cx');
+                const cyValue = +selectedCircle.attr('cy');
+                console.log(cxValue, cyValue);
+    
+                // 检查目标值是否已经存在于 Set 中，如果不存在，则创建连接线
+                if (!seenValues.has(target.value)) {
+                    seenValues.add(target.value);
+                    createDiskAndLink(
+                        d3.select(svgRef.current),
+                        target,
+                        propertyUri,
+                        'incoming',
+                        target.value,
+                        { x: cxValue, y: cyValue },
+                        store,
+                        mainClassRef,
+                        classId,
+                        seenValues
+                    );
+                    // 将目标值添加到 Set 中
+                    
+                } else {
+                    console.log(`Skipping duplicate target value: ${target.value}`);
+                }
             });
         } catch (error) {
             console.error('Error expanding relations:', error);
         }
     }
-
+    
     function expandSubclasses(classId) {
         try {
             console.log("Expanding subclasses for:", classId);
@@ -210,30 +246,52 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 console.error('No class selected or RDF store is not available.');
                 return;
             }
+            
             const clickedNode = $rdf.namedNode(classId);
             console.log(clickedNode);
             const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
             console.log(outgoingConnectedClasses);
+            
+            // 创建一个集合来跟踪已经展开的子类的目标值
+            const expandedValues = new Set();
+            expandedValues.add(selectedClass);
+    
             outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-              const selectedCircle =d3.select(`circle[classId="${classId}"]`)  ;
-              const cxValue = +selectedCircle.attr('cx');
-              const cyValue = +selectedCircle.attr('cy');
-
+                const targetValue = target.value;
+                
+                // 检查目标值是否已经存在于集合中，如果是，则不展开子类
+                if (expandedValues.has(targetValue)) {
+                    console.log(`Subclass with target value ${targetValue} has already been expanded.`);
+                    return; // 跳过当前循环
+                }
+    
+                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                const cxValue = +selectedCircle.attr('cx');
+                const cyValue = +selectedCircle.attr('cy');
+                expandedValues.add(targetValue);
+    
                 createDiskAndLink(
                     d3.select(svgRef.current),
                     target,
                     propertyUri,
                     'outgoing',
-                    target.value,
-                    { x: cxValue, y: cyValue}, 
+                    targetValue,
+                    { x: cxValue, y: cyValue },
                     store,
-                    mainClassRef
+                    mainClassRef,
+                    classId,
+                    expandedValues
+
                 );
+    
+                // 将目标值添加到已展开的子类集合中
+                
             });
         } catch (error) {
             console.error('Error expanding subclasses:', error);
         }
     }
+    
 
     function removeSelectedClass(classId) {
         const svg = d3.select(svgRef.current);

@@ -17,10 +17,14 @@ export const createDiskAndLink = (
   nodeId: string,
   mainClassPosition: { x: number, y: number },
   store: $rdf.Store,
-  mainClassRef: React.MutableRefObject<SVGElement | null>
+  mainClassRef: React.MutableRefObject<SVGElement | null>,
+  classId:string,
+  seenValues:any
 ): void => {
   console.log(nodeId);
   console.log(newNode.value);
+  console.log(classId);
+  console.log(seenValues);
 
   // 计算新圆圈的位置
   const center = { x: 200, y: 200 }; // 中心点坐标
@@ -80,7 +84,7 @@ export const createDiskAndLink = (
   const propertyName = lastSlashIndex !== -1 ? property.substring(lastSlashIndex + 1) : property;
 
   // 创建连接线条
-  const link = svg.append('path').attr('class', 'link').style('stroke', '#333333').style('stroke-width', 2).attr('nodeId', nodeId);
+  const link = svg.append('path').attr('class', 'link').style('stroke', '#333333').style('stroke-width', 2).attr('nodeId', nodeId).attr('startId',classId);
 
   // 创建连接线上的文字
   const text = svg
@@ -90,6 +94,7 @@ export const createDiskAndLink = (
     .attr('dominant-baseline', 'middle')
     .text(` ${propertyName}`)
     .attr('nodeId', nodeId)
+    .attr('startId',classId)
     .style('font-size', '14px');
 
   // 更新连接线的位置和连接线上文字的位置
@@ -137,6 +142,10 @@ export const createDiskAndLink = (
   function dragged(event) {
     const newX = event.x;
     const newY = event.y;
+    const nodeId = d3.select(this).attr('nodeId');
+  
+
+    updateMainClassRelatedLines(newX, newY,nodeId);
 
     // 更新圆圈的位置
     relatedDisk.select('circle').attr('cx', newX).attr('cy', newY);
@@ -146,7 +155,49 @@ export const createDiskAndLink = (
 
     // 更新相关文本的位置
     labelText.attr('x', newX - 25).attr('y', newY);
+    
+    
   }
+  
+  function updateMainClassRelatedLines(newX, newY, nodeId) {
+    // 遍历所有连接线
+    d3.selectAll('.link-text').each(function() {
+      const text = d3.select(this);
+      const textNodeId = text.attr('nodeId');
+      const textStartId = text.attr('startId');
+
+    
+    d3.selectAll('.link').each(function() {
+        const line = d3.select(this);
+        const startId = line.attr('startId');
+        const endId = line.attr('nodeId');
+
+        // 检查连接线的起点或终点是否与所选圆圈相匹配
+        if (startId === nodeId || endId === nodeId) {
+            // 获取连接线的路径属性
+            const linkPath = line.attr('d');
+
+            // 使用正则表达式提取终点坐标
+            const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
+            // 更新连接线的路径
+            const updatedLinkPath = `M${newX},${newY} L${targetX},${targetY}`;
+            line.attr('d', updatedLinkPath);
+
+            // 更新连接线上文字的位置
+            if (endId === textNodeId && startId === textStartId) {
+              const midX = (parseInt(newX) + parseInt(targetX)) / 2;
+              const midY = (parseInt(newY) + parseInt(targetY)) / 2;
+              line.attr('d', updatedLinkPath);
+              text.attr('x', midX).attr('y', midY);
+          }
+        }
+    });
+})}
+  
+
+
+
+  
 
   // 更新连接线的位置
   function updateLink() {
@@ -154,7 +205,7 @@ export const createDiskAndLink = (
     const sourceY = mainClassPosition.y;
     const targetX = +relatedDisk.select('circle').attr('cx');
     const targetY = +relatedDisk.select('circle').attr('cy');
-    const linkPath = `M${sourceX},${sourceY} L${targetX - 50},${targetY}`;
+    const linkPath = `M${sourceX},${sourceY} L${targetX},${targetY}`;
     link.attr('d', linkPath);
 
     // 更新连接线上文字的位置
@@ -251,6 +302,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
         console.error('No node selected or RDF store is not available.');
         return;
       }
+    
       const clickedNode = $rdf.namedNode(newNode.value);
       console.log(clickedNode);
       const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
@@ -260,7 +312,8 @@ console.log('圆圈的位置:', circleCX, circleCY);
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
         console.log(target, propertyUri);
         const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: mainClassPosition.x, y: mainClassPosition.y },  store,mainClassRef);
+        if (!seenValues.has(target.value)) {createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: mainClassPosition.x, y: mainClassPosition.y },  store,mainClassRef,nodeId,seenValues);
+        seenValues.add(target.value);}
       });
     } catch (error) {
       console.error('Error expanding relations:', error);
@@ -280,13 +333,15 @@ console.log('圆圈的位置:', circleCX, circleCY);
         console.error('No node selected or RDF store is not available.');
         return;
       }
+      
       const clickedNode = $rdf.namedNode(newNode.value);
       console.log(clickedNode);
       const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
       console.log(outgoingConnectedClasses);
       outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
         const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY},  store,mainClassRef);
+        if (!seenValues.has(target.value)) {createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY},  store,mainClassRef,nodeId,seenValues);
+        seenValues.add(target.value);}
       });
     } catch (error) {
       console.error('Error expanding subclasses:', error);
