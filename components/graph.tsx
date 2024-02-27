@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import * as $rdf from 'rdflib';
 import * as rdfHelpers from '@/components/rdfHelpers';
+import { start } from 'repl';
 
 // 定义链接方向
 type Direction = 'incoming' | 'outgoing';
@@ -37,6 +38,7 @@ export const createDiskAndLink = (
 
   const diskRadius = 50;
   const diskSpacing = 20; // 可以调整圆圈之间的间距
+
 
   // 更新已创建的圆圈数量
   numDisksCreated++;
@@ -98,7 +100,7 @@ export const createDiskAndLink = (
     .style('font-size', '14px');
 
   // 更新连接线的位置和连接线上文字的位置
-  updateLink();
+  updateLink(sourceX,sourceY);
 
   // 创建箭头元素
   svg
@@ -143,7 +145,18 @@ export const createDiskAndLink = (
     const newX = event.x;
     const newY = event.y;
     const nodeId = d3.select(this).attr('nodeId');
-  
+    const selectedLine = d3.select('.link[nodeId="' + nodeId + '"]');
+    const startId = selectedLine.attr('startId');
+    let circleX, circleY;
+
+    const relatedCircle = d3.select(`circle[nodeId="${startId}"]`);
+    if (relatedCircle.empty()) {
+        circleX = sourceX;
+        circleY = sourceY;
+    } else {
+        circleX = +relatedCircle.attr('cx');
+        circleY = +relatedCircle.attr('cy');
+    }
 
     updateMainClassRelatedLines(newX, newY,nodeId);
 
@@ -151,7 +164,7 @@ export const createDiskAndLink = (
     relatedDisk.select('circle').attr('cx', newX).attr('cy', newY);
 
     // 更新连接线的位置和连接线上文字的位置
-    updateLink();
+    updateLink(circleX,circleY);
 
     // 更新相关文本的位置
     labelText.attr('x', newX - 25).attr('y', newY);
@@ -200,9 +213,9 @@ export const createDiskAndLink = (
   
 
   // 更新连接线的位置
-  function updateLink() {
-    const sourceX = mainClassPosition.x ;
-    const sourceY = mainClassPosition.y;
+  function updateLink(startx,starty) {
+    const sourceX = startx;
+    const sourceY = starty;
     const targetX = +relatedDisk.select('circle').attr('cx');
     const targetY = +relatedDisk.select('circle').attr('cy');
     const linkPath = `M${sourceX},${sourceY} L${targetX},${targetY}`;
@@ -312,7 +325,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
         console.log(target, propertyUri);
         const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        if (!seenValues.has(target.value)) {createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: mainClassPosition.x, y: mainClassPosition.y },  store,mainClassRef,nodeId,seenValues);
+        if (!seenValues.has(target.value)) {createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,seenValues);
         seenValues.add(target.value);}
       });
     } catch (error) {

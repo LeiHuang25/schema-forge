@@ -13,7 +13,8 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             .attr('width', '100%')
             .attr('height', '100%');
 
-        const group = svg.append('g');
+
+        const group = svg.append('g').attr('class', 'disk-and-label');
 
         group.append('rect')
             .attr('width', '100%')
@@ -44,6 +45,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
             const disk = group.append('circle')
                 .attr('class', 'class-circle')
+                .attr('nodeId',selectedClass)
                 .attr('classId', selectedClass)
                 .attr('cx', startX)
                 .attr('cy', startY)
