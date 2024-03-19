@@ -6,7 +6,7 @@ import * as rdfHelpers from '@/components/rdfHelpers';
 
 const Diagram = ({ selectedClass, store, setTableData }) => {
     const svgRef = useRef(null);
-    const mainClassRef = useRef(null); 
+    const mainClassRef = useRef(null);
 
     useEffect(() => {
         const svg = d3.select(svgRef.current)
@@ -19,7 +19,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             .attr('width', '100%')
             .attr('height', '100%')
             .attr('fill', 'lightgray');
-        
+
 
         const zoom = d3.zoom()
             .scaleExtent([0.4, 3])
@@ -29,7 +29,19 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
         svg.call(zoom);
 
+        const handleResize = () => {
+            const width = svgRef.current.parentElement.clientWidth;
+            const height = svgRef.current.parentElement.clientHeight;
+            svg.attr('width', width)
+                .attr('height', height);
+        };
+
+        handleResize(); // Initial call to set correct size
+
+        window.addEventListener('resize', handleResize);
+
         return () => {
+            window.removeEventListener('resize', handleResize);
             svg.selectAll('*').remove();
             svg.remove();
         };
@@ -70,7 +82,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 .style('fill', 'black')
                 .call(d3.drag().on('drag', dragged))
                 .text(label);
-            
+
 
             function dragged(event) {
                 const newX = event.x;
@@ -599,18 +611,18 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             console.log(clickedNode);
             const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
             console.log(outgoingConnectedClasses);
-            
+        
             const expandedValues = new Set();
             expandedValues.add(selectedClass);
             let count=0;
-    
+
             outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
                 const targetValue = target.value;
                 if (expandedValues.has(targetValue)) {
                     console.log(`Subclass with target value ${targetValue} has already been expanded.`);
                     return;
                 }
-    
+
                 const selectedCircle = d3.select(`circle[classId="${classId}"]`);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
@@ -634,7 +646,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             console.error('Error expanding subclasses:', error);
         }
     }
-    
+
 
     function removeSelectedClass(classId) {
         const svg = d3.select(svgRef.current);
