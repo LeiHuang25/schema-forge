@@ -13,6 +13,13 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             .attr('width', '100%')
             .attr('height', '100%');
 
+        // Add background
+        const background = svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', 'lightgrey')
+            .attr('pointer-events', 'all');
+
         const group = svg.append('g').attr('class', 'disk-and-label');
 
         group.append('rect')
@@ -29,19 +36,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
         svg.call(zoom);
 
-        const handleResize = () => {
-            const width = svgRef.current.parentElement.clientWidth;
-            const height = svgRef.current.parentElement.clientHeight;
-            svg.attr('width', width)
-                .attr('height', height);
-        };
-
-        handleResize(); // Initial call to set correct size
-
-        window.addEventListener('resize', handleResize);
-
         return () => {
-            window.removeEventListener('resize', handleResize);
             svg.selectAll('*').remove();
             svg.remove();
         };
