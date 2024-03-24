@@ -226,6 +226,7 @@ export const createDiskAndLink = (
     .attr('class', 'link')
     .style('stroke', '#333333')
     .style('stroke-width', 2)
+    .style('opacity', 1)
     .attr('nodeId', nodeId)
     .attr('startId',classId)
     .attr('d', `M${sourceX},${sourceY} L${targetX},${targetY}`);
@@ -241,14 +242,14 @@ export const createDiskAndLink = (
     .attr('startId',classId)
     .style('font-size', '14px')
     .attr('x', midX)
-    .attr('y', midY);
+    .attr('y', midY)
+    .style('opacity', 1);
 
   // calculate the intersection of the link and the circle
-  const startIntersection = calculateDecalage(sourceX, sourceY, targetX, targetY, diskRadius);
-  const endIntersection = calculateDecalage(targetX, targetY, sourceX, sourceY, diskRadius);
+  const Intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, diskRadius);
   
   // 更新连接线的位置和连接线上文字的位置
-  updateLink(sourceX,sourceY,startIntersection,endIntersection);
+  updateLink(sourceX,sourceY,Intersection);
   
 
   // 创建箭头元素
@@ -322,6 +323,9 @@ if (direction === 'outgoing') {
         circleX = +relatedCircle.attr('cx');
         circleY = +relatedCircle.attr('cy');
     }
+
+    // calculate the intersection of the link and the circle
+    const Intersection = calculateDecalage(sourceX, sourceY, newX, newY, diskRadius);
     
     // 更新相关的连接线和文字位置
     updateMainClassRelatedLines(newX, newY,nodeId);
@@ -329,19 +333,21 @@ if (direction === 'outgoing') {
     // 更新圆圈的位置
     relatedDisk.select('circle').attr('cx', newX).attr('cy', newY);
 
-    // calculate the intersection of the link and the circle
-    const startIntersection = calculateDecalage(sourceX, sourceY, newX, newY, diskRadius);
-    const endIntersection = calculateDecalage(newX, newY, sourceX, sourceY, diskRadius);
-
-    // 更新连接线的位置和连接线上文字的位置
-    updateLink(circleX,circleY,startIntersection,endIntersection);
+    // 更新连接线的位置和连接线上文字的位置-----------------------------------------------------------------
+    updateLink(circleX,circleY,Intersection);
 
     // 更新相关文本的位置
     labelText.attr('x', newX - 25).attr('y', newY);
     
-    
+    const distance = Math.sqrt((newX - sourceX) ** 2 + (newY - sourceY) ** 2);
+    if (distance > 100) {
+      selectedLine.style('opacity', 1);
+      text.style('opacity', 1);
+    }else{
+      selectedLine.style('opacity', 1);
+      text.style('opacity', 1);
+    }
   }
-  
   function updateMainClassRelatedLines(newX, newY, nodeId) {
     // 遍历所有连接线
     d3.selectAll('.link-text').each(function() {
@@ -358,19 +364,20 @@ if (direction === 'outgoing') {
         // 检查连接线的起点或终点是否与所选圆圈相匹配
         if (startId === nodeId || endId === nodeId) {
             // 获取连接线的路径属性
-            const linkPath = line.attr('d');
+            const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
+            const circleX = +relatedCircle.attr('cx');
+            const circleY = +relatedCircle.attr('cy');
+            const circleRadius = +relatedCircle.attr('r');
+            const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
 
-            // 使用正则表达式提取终点坐标
-            const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
             // 更新连接线的路径
-            const updatedLinkPath = `M${newX },${newY } L${targetX },${targetY }`;
+            const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
             line.attr('d', updatedLinkPath);
 
             // 更新连接线上文字的位置
             if (endId === textNodeId && startId === textStartId) {
-              const midX = (parseInt(newX) + parseInt(targetX)) / 2;
-              const midY = (parseInt(newY) + parseInt(targetY)) / 2;
-              line.attr('d', updatedLinkPath);
+              const midX = (newX + circleX) / 2;
+              const midY = (newY + circleY) / 2;
               text.attr('x', midX).attr('y', midY);
           }
         }
@@ -378,17 +385,13 @@ if (direction === 'outgoing') {
 })}
   
 
-
-
-  
-
   // 更新连接线的位置
-  function updateLink(startx,starty,startIntersection,endIntersection) {
+  function updateLink(startx,starty,Intersection) {
     const sourceX = startx;
     const sourceY = starty;
     const targetX = +relatedDisk.select('circle').attr('cx');
     const targetY = +relatedDisk.select('circle').attr('cy');
-    const linkPath = `M${sourceX +startIntersection[0]},${sourceY +startIntersection[1]} L${targetX + endIntersection[0]},${targetY + endIntersection[1]}`;
+    const linkPath = `M${sourceX +Intersection[0]},${sourceY +Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
     link.attr('d', linkPath);
 
     // 更新连接线上文字的位置

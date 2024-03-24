@@ -97,32 +97,48 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
     function updateMainClassRelatedLines(newX, newY, nodeId) {
         d3.selectAll('.link-text').each(function() {
-          const text = d3.select(this);
-          const textNodeId = text.attr('nodeId');
-          const textStartId = text.attr('startId');
-        
-          d3.selectAll('.link').each(function() {
-              const line = d3.select(this);
-              const startId = line.attr('startId');
-              const endId = line.attr('nodeId');
-    
-              if (startId === nodeId || endId === nodeId) {
-                  const linkPath = line.attr('d');
-                  const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
-                  const updatedLinkPath = `M${newX},${newY} L${targetX},${targetY}`;
-                  line.attr('d', updatedLinkPath);
-    
-                  if (endId === textNodeId && startId === textStartId) {
-                      const midX = (parseInt(newX) + parseInt(targetX)) / 2;
-                      const midY = (parseInt(newY) + parseInt(targetY)) / 2;
-                      line.attr('d', updatedLinkPath);
-                      text.attr('x', midX).attr('y', midY);
-                  }
-              }
-          });
-      });
+            const text = d3.select(this);
+            const textNodeId = text.attr('nodeId');
+            const textStartId = text.attr('startId');
+
+        d3.selectAll('.link').each(function() {
+            const line = d3.select(this);
+            const startId = line.attr('startId');
+            const endId = line.attr('nodeId');
+
+            if (startId === nodeId || endId === nodeId) {
+                const circleRadius = 50;
+                const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
+                const circleX = +relatedCircle.attr('cx');
+                const circleY = +relatedCircle.attr('cy');
+
+                const Intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
+
+                const updatedLinkPath = `M${newX + Intersection[0]},${newY + Intersection[1]} L${circleX - Intersection[0]},${circleY - Intersection[1]}`;
+                line.attr('d', updatedLinkPath);
+
+                if (endId === textNodeId && startId === textStartId) {
+                    const midX = (parseInt(newX) + parseInt(circleX)) / 2;
+                    const midY = (parseInt(newY) + parseInt(circleY)) / 2;
+                    line.attr('d', updatedLinkPath);
+                    text.attr('x', midX).attr('y', midY);
+                    }
+                }
+            });
+        });
     }
+
+    function calculateDecalage(x1, y1, x2, y2, r) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dr = Math.sqrt(dx * dx + dy * dy);
+        const sin = dy/dr;
+        const cos = dx/dr;
     
+        const x = (r * cos);
+        const y = (r * sin);
+        return [x, y];
+      }
     
     
 
