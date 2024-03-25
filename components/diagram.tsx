@@ -126,6 +126,34 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 }
             });
         });
+        
+        const svg = d3.select(svgRef.current);
+        const group = svg.select('g');
+
+        // 获取所有圆圈的位置
+        const circles = group.selectAll('circle').nodes();
+        circles.forEach(circle => {
+            const otherCircle = d3.select(circle);
+            const otherNodeId = otherCircle.attr('nodeId');
+            const otherCircleX = +otherCircle.attr('cx');
+            const otherCircleY = +otherCircle.attr('cy');
+
+            // 计算选定圆圈与当前圆圈之间的距离
+            const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+
+            // 如果距离过近，则隐藏连接线和文字
+            if (distance < 100 && otherNodeId !== nodeId) {
+                group.selectAll(`.link[startId="${otherNodeId}"][nodeId="${nodeId}"], .link[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
+                    .style('display', 'none');
+                group.selectAll(`.link-text[startId="${otherNodeId}"][nodeId="${nodeId}"], .link-text[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
+                    .style('display', 'none');
+            } else {
+                group.selectAll(`.link[startId="${otherNodeId}"][nodeId="${nodeId}"], .link[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
+                    .style('display', 'block');
+                group.selectAll(`.link-text[startId="${otherNodeId}"][nodeId="${nodeId}"], .link-text[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
+                    .style('display', 'block');
+            }
+        });
     }
 
     function calculateDecalage(x1, y1, x2, y2, r) {

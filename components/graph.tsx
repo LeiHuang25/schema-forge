@@ -325,7 +325,7 @@ if (direction === 'outgoing') {
     }
 
     // calculate the intersection of the link and the circle
-    const Intersection = calculateDecalage(sourceX, sourceY, newX, newY, diskRadius);
+    const Intersection = calculateDecalage(circleX, circleY, newX, newY, diskRadius);
     
     // 更新相关的连接线和文字位置
     updateMainClassRelatedLines(newX, newY,nodeId);
@@ -333,20 +333,61 @@ if (direction === 'outgoing') {
     // 更新圆圈的位置
     relatedDisk.select('circle').attr('cx', newX).attr('cy', newY);
 
-    // 更新连接线的位置和连接线上文字的位置-----------------------------------------------------------------
+    // 更新连接线的位置和连接线上文字的位置
     updateLink(circleX,circleY,Intersection);
 
     // 更新相关文本的位置
     labelText.attr('x', newX - 25).attr('y', newY);
     
-    const distance = Math.sqrt((newX - sourceX) ** 2 + (newY - sourceY) ** 2);
-    if (distance > 100) {
-      selectedLine.style('opacity', 1);
-      text.style('opacity', 1);
-    }else{
-      selectedLine.style('opacity', 1);
-      text.style('opacity', 1);
-    }
+    // 遍历所有lianjiexian,相连距离过近透明化箭头
+    svg.selectAll('.link').each(function(){
+      const line = d3.select(this);
+      const startId = line.attr('startId');
+      const endId = line.attr('nodeId');
+
+      // 检查连接线的起点和终点是否与当前拖拽的圆圈相关联
+      if (startId === nodeId || endId === nodeId) {
+        // 获取另一个圆圈的位置
+        const otherCircleId = startId === nodeId ? endId : startId;
+        const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
+        const otherCircleX = +otherCircle.attr('cx');
+        const otherCircleY = +otherCircle.attr('cy');
+
+        // 计算当前圆圈与另一个圆圈之间的距离
+        const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+
+        // 如果距离小于阈值，则隐藏连接线；否则，显示连接线
+        if (distance < 100) {
+          line.style('opacity', 0);
+        } else {
+          line.style('opacity', 1);
+        }
+      }
+    });
+    svg.selectAll('.link-text').each(function(){
+      const text = d3.select(this);
+      const startId = text.attr('startId');
+      const endId = text.attr('nodeId');
+
+      // 检查连接线的起点和终点是否与当前拖拽的圆圈相关联
+      if (startId === nodeId || endId === nodeId) {
+        // 获取另一个圆圈的位置
+        const otherCircleId = startId === nodeId ? endId : startId;
+        const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
+        const otherCircleX = +otherCircle.attr('cx');
+        const otherCircleY = +otherCircle.attr('cy');
+
+        // 计算当前圆圈与另一个圆圈之间的距离
+        const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+
+        // 如果距离小于阈值，则隐藏连接线；否则，显示连接线
+        if (distance < 100) {
+          text.style('opacity', 0);
+        } else {
+          text.style('opacity', 1);
+        }
+      }
+    });
   }
   function updateMainClassRelatedLines(newX, newY, nodeId) {
     // 遍历所有连接线
@@ -386,12 +427,10 @@ if (direction === 'outgoing') {
   
 
   // 更新连接线的位置
-  function updateLink(startx,starty,Intersection) {
-    const sourceX = startx;
-    const sourceY = starty;
+  function updateLink(sourceX,sourceY,Intersection) {
     const targetX = +relatedDisk.select('circle').attr('cx');
     const targetY = +relatedDisk.select('circle').attr('cy');
-    const linkPath = `M${sourceX +Intersection[0]},${sourceY +Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
+    const linkPath = `M${sourceX + Intersection[0]},${sourceY + Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
     link.attr('d', linkPath);
 
     // 更新连接线上文字的位置
