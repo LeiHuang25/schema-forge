@@ -1,12 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import * as $rdf from 'rdflib';
 import { createDiskAndLink } from '@/components/graph';
 import * as rdfHelpers from '@/components/rdfHelpers';
+import { rdfs } from 'ldkit/namespaces';
+import { time } from 'console';
 
 const Diagram = ({ selectedClass, store, setTableData }) => {
     const svgRef = useRef(null);
     const mainClassRef = useRef(null);
+    const [selectedClassDetails, setSelectedClassDetails] = useState(null);
 
     useEffect(() => {
         const svg = d3.select(svgRef.current)
@@ -19,14 +22,13 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             .attr('height', '100%')
             .attr('fill', 'lightgrey')
             .attr('pointer-events', 'all');
-
-        const group = svg.append('g').attr('class', 'disk-and-label');
+        
+            const group = svg.append('g').attr('class', 'disk-and-label');
 
         group.append('rect')
             .attr('width', '100%')
             .attr('height', '100%')
             .attr('fill', 'lightgray');
-
 
         const zoom = d3.zoom()
             .scaleExtent([0.4, 3])
@@ -52,7 +54,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
 
             const disk = group.append('circle')
                 .attr('class', 'class-circle')
-                .attr('nodeId',selectedClass)
+                .attr('nodeId', selectedClass)
                 .attr('classId', selectedClass)
                 .attr('cx', startX)
                 .attr('cy', startY)
@@ -61,14 +63,28 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 .style('stroke', 'black')
                 .style('stroke-width', 2)
                 .call(d3.drag().on('drag', dragged))
-                .on('contextmenu', (event) => displayContextMenu(event, selectedClass));
+                .on('contextmenu', (event) => displayContextMenu(event, selectedClass))
+                .on('click', function () {
+                    const isSelected = d3.select(this).classed('selected');
+                    // If already selected, uncheck the state, otherwise set to the selected state
+                    if (isSelected) {
+                        d3.select(this).classed('selected', false).style('stroke-width', 2);
+                    } else {
+                        // Uncheck all other circles
+                        svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
+                        // Set the current circle to the selected state
+                        d3.select(this).classed('selected', true).style('stroke-width', 4);
+                        const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
+                        setSelectedClassDetails(classDetails);
+                    }
+                });
 
             mainClassRef.current = disk.node();
 
             const label = rdfHelpers.getLabelFromURI(store, selectedClass);
             group.append('text')
                 .attr('class', 'node-label')
-                .attr('nodeId',selectedClass)
+                .attr('nodeId', selectedClass)
                 .attr('classId', selectedClass)
                 .attr('x', startX)
                 .attr('y', startY)
@@ -77,7 +93,6 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 .style('fill', 'black')
                 .call(d3.drag().on('drag', dragged))
                 .text(label);
-
 
             function dragged(event) {
                 const newX = event.x;
@@ -94,43 +109,347 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             }
         }
     }, [selectedClass]);
+    const getClassDetails = (selectedClass, store) => {
+        const classNode = $rdf.namedNode(selectedClass);
+        const tableData=rdfHelpers.getDirectProperties(store, classNode);
+        const tableData1=rdfHelpers.getDataProperties(store, classNode);
+       
+        const attributeEntries = Object.entries(tableData1);
+        // Build attributed string
+        const attributeString = attributeEntries.map(([key, value]) => `${key}(${value})`).join(', ');
+        
+        // Get the selected circle element
+        const selectedCircle = d3.select(`circle[nodeId="${selectedClass}"]`);
+        
+        // Check if circle is selected
+        const isSelected = selectedCircle.classed('selected');
+        const nodeId = selectedCircle.attr('nodeId');
+        const lastIndex = nodeId.lastIndexOf('/');
+        const name = lastIndex !== -1 ? nodeId.substring(lastIndex + 1) : nodeId;
+        const superclass = rdfHelpers.getSuperClasses(store, classNode);
+        const subclass = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
+        const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
+        const InferredSubClass=rdfHelpers.getIndirectlyConnectedClasses(store,classNode);
+        const Inferredrelation=rdfHelpers.getIndirectlyIncomingClasses(store,classNode);
+       
+        const superlist = superclass.map(superclass => superclass.superClass);
+        const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
+       
+        const subname = subclass.map(item => {
+            if (item.target) {
+                return item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+            } else {
+                return ''; 
+            }
+        });
+        const DirectOutgoing = subclass.map(item => {
+            if (item.target) {
+                const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
+                const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+                const target=item.target.value;
+                return { property, targetValue,target };
+            } else {
+                return null;
+            }
+        });
+        const DirectIncoming = relation.map(item => {
+            if (item.target) {
+                const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
+                const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+                const target = item.target.value;
+                return { property, targetValue,target };
+            } else {
+                return null;
+            }
+        });
+        const InferredOutgoing = InferredSubClass.map(item => {
+            if (item && item.value) {
+                const targetValue = item.value.substring(item.value.lastIndexOf("/") + 1);
+                return { targetValue, target: item.value };
+            } else {
+                return null;
+            }
+        }).filter(item => item !== null);
+        const InferredIncoming = Inferredrelation.map(item => {
+            if (item && item.value) {
+                const targetValue = item.value.substring(item.value.lastIndexOf("/") + 1);
+                return { targetValue, target: item.value };
+            } else {
+                return null;
+            }
+        }).filter(item => item !== null);
+        const outgoingTargets = InferredOutgoing.map(item => item.target);
+  // Extract target properties from InferredIncoming and merge into an array
+        const incomingTargets = InferredIncoming.map(item => item.target);
+  
+  // Merge two arrays
+        const allTargets = [...outgoingTargets, ...incomingTargets];
+  
+        function combineAndBuildAttributes(store,...nodess) {
+            // Initialize an empty object to store the merged properties
+            const combinedData = {};
+        
+            // Traverse all nodes, obtain the data attributes of each node and merge them into combinedData
+            nodess.forEach(nodes => {
+              nodes.forEach(node => {
+                const classNode = $rdf.namedNode(node);
+                const data = rdfHelpers.getDataProperties(store, classNode);
+                Object.assign(combinedData, data);
+  
+            })});
+        
+            // Traverse the merged attributes and construct the attribute string
+            const combinedAttributes = Object.entries(combinedData).map(([key, value]) => `${key}(${value})`).join(', ');
+        
+            return combinedAttributes;
+        }
+        const InferredAttr=combineAndBuildAttributes(store,allTargets);
+        
+        // If the circle is selected, return relevant information
+        if (isSelected) {
+            // Return class details such as name, properties, relationships, etc.
+            return {
+                name: name,
+                superclass: supername,
+                subclass: subname,
+                attributes: attributeString,
+                relations: tableData,
+                DirectOutgoing:DirectOutgoing,
+                DirectIncoming:DirectIncoming,
+                InferredOutgoing:InferredOutgoing,
+                InferredIncoming:InferredIncoming,
+                InferredAttr:InferredAttr,
+            };
+        } else {
+            return null;
+        }
+        
+      };
+      
+
+
+      const handleCircleClick = (nodeId) => {
+        // Remove the "selected" class of all circles and set their borders to the default width
+        d3.selectAll('.class-circle').classed('selected', false).style('stroke-width', 2);
+    
+        // Get SVG and group elements
+        const svg = d3.select(svgRef.current);
+        const group = svg.select('g');
+    
+        // Checks if a circle with the specified nodeId exists
+        const existingCircle = group.select(`circle[nodeId="${nodeId}"]`);
+        if (existingCircle.empty()) {
+            // Get the lower position of the lowest circle on the canvas
+            const lowestY = getLowestCircleYPosition(group);
+    
+            // create a new circle
+            const newX = 100; // horizontal position
+            const newY = lowestY + 100; // vertical position, relative to below the lowest circle
+    
+            // Create new circle
+            const newCircle = group.append('circle')
+                .attr('class', 'class-circle')
+                .attr('nodeId', nodeId)
+                .attr('classId', nodeId)
+                .attr('cx', newX)
+                .attr('cy', newY)
+                .attr('r', 50)
+                .style('fill', 'white')
+                .style('stroke', 'black')
+                .style('stroke-width', 2)
+                .call(d3.drag().on('drag', dragged))
+                .on('contextmenu', (event) => displayContextMenu(event, nodeId))
+                .on('click', function () {
+                    const isSelected = d3.select(this).classed('selected');
+                    // If already selected, uncheck the state, otherwise set to the selected state
+                    if (isSelected) {
+                        d3.select(this).classed('selected', false).style('stroke-width', 2);
+                    } else {
+                        // Uncheck all other circles
+                        svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
+                        // Set the current circle to the selected state
+                        d3.select(this).classed('selected', true).style('stroke-width', 4);
+                        const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
+                        setSelectedClassDetails(classDetails);
+                    }
+                });
+    
+            mainClassRef.current = newCircle.node();
+    
+            // Add label for new circle
+            const label = rdfHelpers.getLabelFromURI(store, nodeId);
+            group.append('text')
+                .attr('class', 'node-label')
+                .attr('nodeId', nodeId)
+                .attr('classId', nodeId)
+                .attr('x', newX)
+                .attr('y', newY)
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'central')
+                .style('fill', 'black')
+                .call(d3.drag().on('drag', dragged))
+                .text(label);
+
+            updateRelationsForNewCircle(newCircle);
+    
+            // Set the details of the newly selected circle
+            const classDetails = getClassDetails(nodeId, store);
+            setSelectedClassDetails(classDetails);
+        } else {
+            // If the circle already exists, set it to selected state
+            existingCircle.classed('selected', true).style('stroke-width', 4);
+    
+            // Get and set the details of the newly selected circle
+            const classDetails = getClassDetails(nodeId, store);
+            setSelectedClassDetails(classDetails);
+        }
+    };
+    
+    // Get the lower position of the lowest circle on the canvas
+    function getLowestCircleYPosition(group) {
+        const circles = group.selectAll('.class-circle');
+        let lowestY = 0;
+        circles.each(function () {
+            const cy = +d3.select(this).attr('cy');
+            if (cy > lowestY) {
+                lowestY = cy;
+            }
+        });
+        return lowestY;
+    }
+    
+    function dragged(event) {
+        const newX = event.x;
+        const newY = event.y;
+    
+        d3.select(this)
+            .attr('cx', newX)
+            .attr('cy', newY);
+    
+        const svg = d3.select(svgRef.current);
+        const nodeId = this.getAttribute('nodeId');
+        svg.selectAll(`text[classId="${nodeId}"]`)
+            .attr('x', newX)
+            .attr('y', newY);
+    
+        updateMainClassRelatedLines(newX, newY, nodeId);
+    }
+    function updateRelationsForNewCircle(newCircle) {
+        console.log(newCircle);
+        const svg = d3.select(svgRef.current);
+        const group = svg.select('g');
+        
+        // Get all circles on canvas
+        const existingCircles = group.selectAll('.class-circle');
+        
+        // Iterate over each existing circle
+        existingCircles.each(function () {
+            const existingCircle = d3.select(this);
+            const existingNodeId = existingCircle.attr('nodeId');
+            
+            // Check if there is a subclass relationship
+            const clickedNode = $rdf.namedNode(existingNodeId);
+            const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
+            outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+                if (target&&target.value === newCircle.attr('nodeId')) {
+                console.log('subclass')
+                const selectedCircle = d3.select(`circle[nodeId="${existingNodeId}"]`);
+                const cxValue = +selectedCircle.attr('cx');
+                const cyValue = +selectedCircle.attr('cy');
+                console.log(target,propertyUri);
+                console.log(target.value);
+                    createDiskAndLink(
+                        d3.select(svgRef.current).select('g'),
+                        target,
+                        propertyUri,
+                        'outgoing',
+                        target.value,
+                        { x: cxValue, y: cyValue },
+                        store,
+                        mainClassRef,
+                        existingNodeId,
+                        1,
+                        setSelectedClassDetails
+    
+                    );
+
+            }})
+            
+            // Check if there is a relationship
+            
+            const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
+            incomingConnectedClasses.forEach(({ target, propertyUri }) => {
+                if (target&&target.value === newCircle.attr('nodeId')) {
+                console.log('subclass')
+                console.log(existingNodeId)
+                const selectedCircle = d3.select(`circle[nodeId="${existingNodeId}"]`);
+                console.log(selectedCircle);
+                const cxValue = +selectedCircle.attr('cx');
+                const cyValue = +selectedCircle.attr('cy');
+               
+                    createDiskAndLink(
+                        d3.select(svgRef.current).select('g'),
+                        target,
+                        propertyUri,
+                        'outgoing',
+                        target.value,
+                        { x: cxValue, y: cyValue },
+                        store,
+                        mainClassRef,
+                        existingNodeId,
+                        1,
+                        setSelectedClassDetails
+    
+                    );
+
+            }})})
+            newCircle.classed('selected', true).style('stroke-width', 4);
+
+            // Get and set the details of the newly selected circle
+            const classDetails = getClassDetails(newCircle.attr('nodeId'), store);
+            setSelectedClassDetails(classDetails);
+    }
+
+    
+    
+    
 
     function updateMainClassRelatedLines(newX, newY, nodeId) {
         d3.selectAll('.link-text').each(function() {
             const text = d3.select(this);
             const textNodeId = text.attr('nodeId');
             const textStartId = text.attr('startId');
+            
+            d3.selectAll('.link').each(function() {
+                const line = d3.select(this);
+                const startId = line.attr('startId');
+                const endId = line.attr('nodeId');
 
-        d3.selectAll('.link').each(function() {
-            const line = d3.select(this);
-            const startId = line.attr('startId');
-            const endId = line.attr('nodeId');
+                if (startId === nodeId || endId === nodeId) {
+                    const circleRadius = 50;
+                    const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
+                    const circleX = +relatedCircle.attr('cx');
+                    const circleY = +relatedCircle.attr('cy');
 
-            if (startId === nodeId || endId === nodeId) {
-                const circleRadius = 50;
-                const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
-                const circleX = +relatedCircle.attr('cx');
-                const circleY = +relatedCircle.attr('cy');
+                    const Intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
 
-                const Intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
-
-                const updatedLinkPath = `M${newX + Intersection[0]},${newY + Intersection[1]} L${circleX - Intersection[0]},${circleY - Intersection[1]}`;
-                line.attr('d', updatedLinkPath);
-
-                if (endId === textNodeId && startId === textStartId) {
-                    const midX = (parseInt(newX) + parseInt(circleX)) / 2;
-                    const midY = (parseInt(newY) + parseInt(circleY)) / 2;
+                    const updatedLinkPath = `M${newX + Intersection[0]},${newY + Intersection[1]} L${circleX - Intersection[0]},${circleY - Intersection[1]}`;
                     line.attr('d', updatedLinkPath);
-                    text.attr('x', midX).attr('y', midY);
+
+                    if (endId === textNodeId && startId === textStartId) {
+                        const midX = (parseInt(newX) + parseInt(circleX)) / 2;
+                        const midY = (parseInt(newY) + parseInt(circleY)) / 2;
+                        line.attr('d', updatedLinkPath);
+                        text.attr('x', midX).attr('y', midY);
                     }
                 }
             });
         });
-        
+
         const svg = d3.select(svgRef.current);
         const group = svg.select('g');
 
-        // 获取所有圆圈的位置
+        // Get the positions of all circles
         const circles = group.selectAll('circle').nodes();
         circles.forEach(circle => {
             const otherCircle = d3.select(circle);
@@ -138,10 +457,10 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             const otherCircleX = +otherCircle.attr('cx');
             const otherCircleY = +otherCircle.attr('cy');
 
-            // 计算选定圆圈与当前圆圈之间的距离
+            // Calculate the distance between the selected circle and the current circle
             const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
 
-            // 如果距离过近，则隐藏连接线和文字
+            // Hide connecting lines and text if the distance is too close
             if (distance < 100 && otherNodeId !== nodeId) {
                 group.selectAll(`.link[startId="${otherNodeId}"][nodeId="${nodeId}"], .link[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
                     .style('display', 'none');
@@ -162,13 +481,12 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
         const dr = Math.sqrt(dx * dx + dy * dy);
         const sin = dy/dr;
         const cos = dx/dr;
-    
+
         const x = (r * cos);
         const y = (r * sin);
         return [x, y];
-      }
-    
-    
+    }
+
 
     function displayContextMenu(event, classId) {
         event.preventDefault();
@@ -209,6 +527,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             }
         }
     }
+    
 
     function handleMenuItemClick(action, classId) {
         try {
@@ -626,7 +945,8 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                         store,
                         mainClassRef,
                         classId,
-                        count
+                        count,
+                        setSelectedClassDetails
                     );
                     count=count+1;
                 } else {
@@ -676,7 +996,8 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                     store,
                     mainClassRef,
                     classId,
-                    count
+                    count,
+                    setSelectedClassDetails
 
                 );
                 count=count+1;
@@ -705,10 +1026,184 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             relatedLinks.remove();
             relatedTexts.remove();
     }
-
     return (
-        <svg ref={svgRef}></svg>
+        <div style={{ height: '100vh', overflowY: 'auto' }}>
+            <div>
+                <div style={{ width: '100%', height: '65vh', position: 'relative' }}>
+                    <svg ref={svgRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}></svg>
+                </div>
+                <div style={{ height: 350, width: '100%' }}>
+                <BottomPanel 
+    selectedClassDetails={selectedClassDetails} 
+    onCircleClick={handleCircleClick} 
+/>
+
+                </div>
+            </div>
+        </div>
     );
 };
+
+const BottomPanel = ({ selectedClassDetails, onCircleClick }) => {
+    return (
+        <div className="bottom-panel" style={{ height:'100%',minHeight: 350, width: '100%', overflowY: 'auto' }}>
+            {selectedClassDetails && (
+                <div>
+                    <h1 style={{ fontWeight: 'bold', fontSize: '24px' }}>{selectedClassDetails.name}</h1>
+                    <p>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Superclasses:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>{selectedClassDetails.superclass}</span>
+                    </p>
+                    <p>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Subclasses:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>{selectedClassDetails.subclass.length > 0 ? selectedClassDetails.subclass.join(', ') : 'None'}</span>
+                    </p>
+                    <p>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Direct Attributes:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>{JSON.stringify(selectedClassDetails.attributes)}</span>
+                    </p>
+                    <p>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Direct Relations:{' '}</span>
+                        <br />
+                        <span style={{ margin: '0 20px' }}></span>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Outgoing:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>
+                            {Array.isArray(selectedClassDetails.DirectOutgoing) && selectedClassDetails.DirectOutgoing.length > 0 ? (
+                                selectedClassDetails.DirectOutgoing.map((item, index, array) => (
+                                    <React.Fragment key={index}>
+                                        <span 
+                                            style={{ 
+                                                fontWeight: 'italic', 
+                                                color: 'brown', 
+                                                fontSize: '15px', 
+                                                cursor: 'pointer'
+                                            }}
+                                            onClick={() => {
+                                                console.log('Clicked:', item);
+                                                if (item && item.property && item.targetValue ) {
+                                                    console.log('Property:', item.property);
+                                                    console.log('Target Value:', item.targetValue);
+                                                    onCircleClick(item.target);
+                                                }
+                                            }}
+                                        >
+                                            {item && item.property && item.targetValue  ? `${item.property} -> ${item.targetValue}` : 'Unknown'}
+                                        </span>
+                                        {index !== array.length - 1 ? ', ' : ''}
+                                    </React.Fragment>
+                                ))
+                            ) : 'None'}
+                        </span>
+                        <br />
+                        <span style={{ margin: '0 20px' }}></span>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Incoming:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>
+                            {selectedClassDetails.DirectIncoming && selectedClassDetails.DirectIncoming.length > 0 ? (
+                                selectedClassDetails.DirectIncoming
+                                    .filter(item => item && item.property)
+                                    .map((item, index, array) => (
+                                        <React.Fragment key={index}>
+                                            <span 
+                                                style={{ 
+                                                    fontWeight: 'italic', 
+                                                    color: 'brown', 
+                                                    fontSize: '15px', 
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => {
+                                                    console.log('Clicked:', item);
+                                                    if (item) {
+                                                        console.log('Property:', item.property);
+                                                        console.log('Target Value:', item.targetValue);
+                                                        onCircleClick(item.target);
+                                                    }
+                                                }}
+                                            >
+                                                {item && item.property && item.targetValue ? `${item.property} -> ${item.targetValue}` : 'Unknown'}
+                                            </span>
+                                            {index !== array.length - 1 ? ', ' : ''}
+                                        </React.Fragment>
+                                    ))
+                            ) : 'None'}
+                        </span>
+                    </p>
+                    <p>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Inferred Relations:{' '}</span>
+                        <br />
+                        <span style={{ margin: '0 20px' }}></span>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Outgoing:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>
+                            {Array.isArray(selectedClassDetails.InferredOutgoing) && selectedClassDetails.InferredOutgoing.length > 0 ? (
+                                selectedClassDetails.InferredOutgoing.map((item, index, array) => (
+                                    <React.Fragment key={index}>
+                                        <span 
+                                            style={{ 
+                                                fontWeight: 'italic', 
+                                                color: 'brown', 
+                                                fontSize: '15px', 
+                                                cursor: 'pointer'
+                                            }}
+                                            onClick={() => {
+                                                console.log('Clicked:', item);
+                                                if (item && item.targetValue ) {
+                                                    console.log('Target Value:', item.targetValue);
+                                                    onCircleClick(item.target);
+                                                }
+                                            }}
+                                        >
+                                            {item  && item.targetValue ? ` ${item.targetValue}` : 'Unknown'}
+                                        </span>
+                                        {index !== array.length - 1 ? ', ' : ''}
+                                    </React.Fragment>
+                                ))
+                            ) : 'None'}
+                        </span>
+                        <br />
+                        <span style={{ margin: '0 20px' }}></span>
+                        <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Incoming:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>
+                        {selectedClassDetails.InferredIncoming && selectedClassDetails.InferredIncoming.length > 0 ? (
+                                selectedClassDetails.InferredIncoming
+                                    .filter(item => item )
+                                    .map((item, index, array) => (
+                                        <React.Fragment key={index}>
+                                            <span 
+                                                style={{ 
+                                                    fontWeight: 'italic', 
+                                                    color: 'brown', 
+                                                    fontSize: '15px', 
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => {
+                                                    console.log('Clicked:', item);
+                                                    if (item) {
+                                                        console.log('Target Value:', item.targetValue);
+                                                        onCircleClick(item.target);
+                                                    }
+                                                }}
+                                            >
+                                                {item  && item.targetValue ? ` ${item.targetValue}` : 'Unknown'}
+                                            </span>
+                                            {index !== array.length - 1 ? ', ' : ''}
+                                        </React.Fragment>
+                                    ))
+                            ) : 'None'}
+                        </span>
+                    </p>
+                    <div style={{ paddingBottom: '50px' }}>
+                    <p>
+                    <span style={{ fontWeight: 'bold', fontSize: '12px' }}>Inferred Attributes:{' '}</span>
+                        <span style={{ fontWeight: 'italic', color: 'brown', fontSize: '15px' }}>{JSON.stringify(selectedClassDetails.InferredAttr)}</span>
+                    </p>
+                    </div>
+                    <p>''</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+
 
 export default Diagram;

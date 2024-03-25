@@ -20,6 +20,7 @@ export const createDiskAndLink = (
   mainClassRef: React.MutableRefObject<SVGElement | null>,
   classId:string,
   count:number,
+  setSelectedClassDetails: (classDetails: any) => void
 ): void => {
   
   
@@ -113,18 +114,18 @@ export const createDiskAndLink = (
             const startId = line.attr('startId');
             const endId = line.attr('nodeId');
     
-            // Check if the start or end of the link matches the dragged circle
+            // Checks whether the start or end point of the connecting line matches the selected circle
             if (startId === nodeId) {
-                // Get the path attribute of the link
+                // Get the path properties of the connection line
                 const linkPath = line.attr('d');
     
-                // 使用正则表达式提取终点坐标
+                // Extract endpoint coordinates using regular expressions
                 const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
-                // Update the link's path
+                // Update the path of the connecting line
                 const updatedLinkPath = `M${newX},${newY} L${targetX},${targetY}`;
                 line.attr('d', updatedLinkPath);
     
-                // Update the position of the text along the link
+                // Update the position of the text on the connecting line
                 if (endId === textNodeId && startId === textStartId) {
                   const midX = (parseInt(newX) + parseInt(targetX)) / 2;
                   const midY = (parseInt(newY) + parseInt(targetY)) / 2;
@@ -136,12 +137,12 @@ export const createDiskAndLink = (
               // 获取连接线的路径属性
               const linkPath = line.attr('d');
   
-              // 使用正则表达式提取终点坐标
+              // Get the path properties of the connection line
               const [, startX, startY] = linkPath.match(/M([^,]+),([^Z]+)/);
               const updatedLinkPath = `M${startX},${startY} L${newX},${newY}`;
               line.attr('d', updatedLinkPath);
   
-              // 更新连接线上文字的位置
+              // Update the position of the text on the connecting line
               if (endId === textNodeId && startId === textStartId) {
                 const midX = (parseInt(startX) + parseInt(newX)) / 2;
                 const midY = (parseInt(startY) + parseInt(newY)) / 2;
@@ -153,11 +154,11 @@ export const createDiskAndLink = (
     })}
       
       
-  // 更新连接线的位置
+  // Update the position of the connection line
   function updateLink(startX, startY, endX, endY, line,linkText) {
     const linkPath = `M${startX},${startY} L${endX},${endY}`;
     line.attr('d', linkPath);
-    // 更新连接线上文字的位置
+    // Update the position of the text on the connecting line
     const midX = (startX + endX) / 2;
     const midY = (startY + endY) / 2;
     linkText.attr('x', midX).attr('y', midY);
@@ -167,18 +168,18 @@ export const createDiskAndLink = (
 
 
 
-  // 计算新圆圈的位置
+  //Calculate the position of the new circle
   else{
   const select=svg.select(`circle[nodeId="${classId}"]`)
   console.log(select.attr('cx'),select.attr('cy'))
   
-  // 根据极坐标计算圆圈的位置
+  // Calculate the position of a circle based on polar coordinates
   const diskX = +select.attr('cx')+150;
   const diskY =+select.attr('cy')+120*count;
   const diskRadius = 50;
 
 
-  // 创建新的圆圈
+  // Create new circle
   const relatedDisk = svg.append('g').attr('class', 'disk-and-label');
 
   relatedDisk
@@ -190,12 +191,145 @@ export const createDiskAndLink = (
     .style('stroke', 'black')
     .style('stroke-width', 2)
     .attr('nodeId', nodeId)
-    // 添加拖拽功能
+    // Add drag and drop functionality
     .call(d3.drag().on('drag', dragged))
-    // 右键点击事件
-    .on('contextmenu', (event) => displayContextMenu(event, newNode, store)); // 将 classId 改为 newNode，并传入 store
+    .on('click', function () {
+      const isSelected = d3.select(this).classed('selected');
+      // If already selected, uncheck the state, otherwise set to the selected state
+      if (isSelected) {
+          d3.select(this).classed('selected', false).style('stroke-width', 2);
+      } else {
+          // Uncheck all other circles
+          svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
+          // Set the current circle to the selected state
+          d3.select(this).classed('selected', true).style('stroke-width', 4);
+          const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
+          setSelectedClassDetails(classDetails);
+        }
+      })
+    .classed('class-circle', true)
+    // right click event
+    .on('contextmenu', (event) => displayContextMenu(event, newNode, store)); // Change classId to newNode and pass it into store
 
-  // 在圆圈附近添加文本
+
+    const getClassDetails = (selectedClass, store) => {
+      const classNode = $rdf.namedNode(selectedClass);
+      const tableData=rdfHelpers.getDirectProperties(store, classNode);
+      const tableData1=rdfHelpers.getDataProperties(store, classNode);
+     
+      const attributeEntries = Object.entries(tableData1);
+      // Build attributed string
+      const attributeString = attributeEntries.map(([key, value]) => `${key}(${value})`).join(', ');
+      
+      // Get the selected circle element
+      const selectedCircle = d3.select(`circle[nodeId="${selectedClass}"]`);
+      
+      // Check if circle is selected
+      const isSelected = selectedCircle.classed('selected');
+      const nodeId = selectedCircle.attr('nodeId');
+      const lastIndex = nodeId.lastIndexOf('/');
+      const name = lastIndex !== -1 ? nodeId.substring(lastIndex + 1) : nodeId;
+      const superclass = rdfHelpers.getSuperClasses(store, classNode);
+      const subclass = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
+      const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
+      const InferredSubClass=rdfHelpers.getIndirectlyConnectedClasses(store,classNode);
+      const Inferredrelation=rdfHelpers.getIndirectlyIncomingClasses(store,classNode);
+     
+      const superlist = superclass.map(superclass => superclass.superClass);
+      const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
+     
+      const subname = subclass.map(item => {
+          if (item.target) {
+              return item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+          } else {
+              return '';
+          }
+      });
+      const DirectOutgoing = subclass.map(item => {
+          if (item.target) {
+              const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
+              const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+              const target=item.target.value;
+              return { property, targetValue,target };
+          } else {
+              return null;
+          }
+      });
+      const DirectIncoming = relation.map(item => {
+          if (item.target) {
+              const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
+              const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
+              const target = item.target.value;
+              return { property, targetValue,target };
+          } else {
+              return null;
+          }
+      });
+      const InferredOutgoing = InferredSubClass.map(item => {
+          if (item && item.value) {
+              const targetValue = item.value.substring(item.value.lastIndexOf("/") + 1);
+              return { targetValue, target: item.value };
+          } else {
+              return null;
+          }
+      }).filter(item => item !== null);
+      const InferredIncoming = Inferredrelation.map(item => {
+          if (item && item.value) {
+              const targetValue = item.value.substring(item.value.lastIndexOf("/") + 1);
+              return { targetValue, target: item.value };
+          } else {
+              return null;
+          }
+      }).filter(item => item !== null);
+      const outgoingTargets = InferredOutgoing.map(item => item.target);
+// Extract target properties from InferredIncoming and merge into an array
+      const incomingTargets = InferredIncoming.map(item => item.target);
+
+// Merge two arrays
+      const allTargets = [...outgoingTargets, ...incomingTargets];
+
+      function combineAndBuildAttributes(store,...nodess) {
+          // Initialize an empty object to store the merged properties
+          const combinedData = {};
+      
+          // Traverse all nodes, obtain the data attributes of each node and merge them into combinedData
+          nodess.forEach(nodes => {
+            nodes.forEach(node => {
+              const classNode = $rdf.namedNode(node);
+              const data = rdfHelpers.getDataProperties(store, classNode);
+              Object.assign(combinedData, data);
+
+          })});
+      
+          // Traverse the merged attributes and construct the attribute string
+          const combinedAttributes = Object.entries(combinedData).map(([key, value]) => `${key}(${value})`).join(', ');
+      
+          return combinedAttributes;
+      }
+      const InferredAttr=combineAndBuildAttributes(store,allTargets);
+      
+      // If the circle is selected, return relevant information
+      if (isSelected) {
+          // Returns class details such as name, properties, relationships, etc.
+          return {
+              name: name,
+              superclass: supername,
+              subclass: subname,
+              attributes: attributeString,
+              relations: tableData,
+              DirectOutgoing:DirectOutgoing,
+              DirectIncoming:DirectIncoming,
+              InferredOutgoing:InferredOutgoing,
+              InferredIncoming:InferredIncoming,
+              InferredAttr:InferredAttr,
+          };
+      } else {
+          return null;
+      }
+      
+    };
+
+  // Add text near circle
   const labelText = relatedDisk
     .append('text')
     .attr('class', 'node-label')
@@ -205,22 +339,22 @@ export const createDiskAndLink = (
     .text(newNode.value.substring(newNode.value.lastIndexOf('/') + 1))
     .style('font-size', '14px');
 
-  // 设置链接的源点和目标点
+  // Set the source and target points of the link
   const sourceX = mainClassPosition.x;
   const sourceY = mainClassPosition.y;
   console.log(sourceX)
   const targetX = +relatedDisk.select('circle').attr('cx');
   const targetY = +relatedDisk.select('circle').attr('cy');
 
-  // 计算链接路径的中点坐标
+  // Calculate the midpoint coordinates of the link path
   const midX = (sourceX + targetX) / 2;
   const midY = (sourceY + targetY) / 2;
 
-  // 提取路径中最后一个斜杠后的部分作为属性
+  // Extract the part after the last slash in the path as an attribute
   const lastSlashIndex = property.lastIndexOf('/');
   const propertyName = lastSlashIndex !== -1 ? property.substring(lastSlashIndex + 1) : property;
 
-  // 创建连接线条
+  // Create connecting lines
   const link = svg
     .append('path')
     .attr('class', 'link')
@@ -231,7 +365,7 @@ export const createDiskAndLink = (
     .attr('startId',classId)
     .attr('d', `M${sourceX},${sourceY} L${targetX},${targetY}`);
 
-  // 创建连接线上的文字
+  // Create text that connects lines
   const text = svg
     .append('text')
     .attr('class', 'link-text')
@@ -248,45 +382,45 @@ export const createDiskAndLink = (
   // calculate the intersection of the link and the circle
   const Intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, diskRadius);
   
-  // 更新连接线的位置和连接线上文字的位置
+  // Update the position of the connector line and the position of the text on the connector line
   updateLink(sourceX,sourceY,Intersection);
   
 
-  // 创建箭头元素
+  // Create arrow element
   svg
     .append('defs')
     .append('marker')
-    .attr('id', 'arrowhead-outgoing') // 定义箭头的ID
-    .attr('viewBox', '-20 -20 40 40') // 定义箭头的视窗
-    .attr('refX', 0) // 箭头相对于终点的偏移量
+    .attr('id', 'arrowhead-outgoing') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
     .attr('refY', 0)
-    .attr('orient', 'auto') // 箭头方向自动调整
-    .attr('markerWidth', 30) // 箭头的宽度
-    .attr('markerHeight', 30) // 箭头的高度
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
     .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
     .append('path')
     .attr('nodeId', nodeId)
-    .attr('d', 'M-10,-5L0,0L-10,5') // 箭头的路径，从终点到起点、
-    .style('fill', 'blue'); // 设置箭头的颜色
+    .attr('d', 'M-10,-5L0,0L-10,5') // Arrow path, from end point to start point
+    .style('fill', 'blue'); // Set arrow color
     
 
   svg
     .append('defs')
     .append('marker')
-    .attr('id', 'arrowhead-incoming') // 定义箭头的ID
-    .attr('viewBox', '-20 -20 40 40') // 定义箭头的视窗
-    .attr('refX', 0) // 箭头相对于终点的偏移量
+    .attr('id', 'arrowhead-incoming') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
     .attr('refY', 0)
-    .attr('orient', 'auto') // 箭头方向自动调整
-    .attr('markerWidth', 30) // 箭头的宽度
-    .attr('markerHeight', 30) // 箭头的高度
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
     .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
     .append('path')
     .attr('nodeId', nodeId)
-    .attr('d', 'M10,5L0,0L10,-5') // 定义箭头的路径
-    .style('fill', 'red'); // 设置箭头的颜色
+    .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
+    .style('fill', 'red'); // Set arrow color
 
-  // 根据方向设置箭头
+  // Set arrows based on direction
 
 if (direction === 'outgoing') {
   link.attr('marker-end', 'url(#arrowhead-outgoing)');
@@ -306,7 +440,7 @@ if (direction === 'outgoing') {
     return [x, y];
   }
 
-  // 拖拽事件处理函数
+  // Drag event handler function
   function dragged(event) {
     const newX = event.x;
     const newY = event.y;
@@ -323,40 +457,40 @@ if (direction === 'outgoing') {
         circleX = +relatedCircle.attr('cx');
         circleY = +relatedCircle.attr('cy');
     }
-
+    
     // calculate the intersection of the link and the circle
     const Intersection = calculateDecalage(circleX, circleY, newX, newY, diskRadius);
-    
-    // 更新相关的连接线和文字位置
+
+    // Update related connecting lines and text positions
     updateMainClassRelatedLines(newX, newY,nodeId);
 
-    // 更新圆圈的位置
+    // Update the circle's position
     relatedDisk.select('circle').attr('cx', newX).attr('cy', newY);
 
-    // 更新连接线的位置和连接线上文字的位置
+    // Update the position of the connector line and the position of the text on the connector line
     updateLink(circleX,circleY,Intersection);
 
-    // 更新相关文本的位置
+    // Update the position of related text
     labelText.attr('x', newX - 25).attr('y', newY);
     
-    // 遍历所有lianjiexian,相连距离过近透明化箭头
+    // Traverse all connecting lines and make the arrows transparent if the connection distance is too close
     svg.selectAll('.link').each(function(){
       const line = d3.select(this);
       const startId = line.attr('startId');
       const endId = line.attr('nodeId');
 
-      // 检查连接线的起点和终点是否与当前拖拽的圆圈相关联
+      // Checks whether the start and end points of the connecting line are associated with the currently dragged circle
       if (startId === nodeId || endId === nodeId) {
-        // 获取另一个圆圈的位置
+        // Get the position of another circle
         const otherCircleId = startId === nodeId ? endId : startId;
         const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
         const otherCircleX = +otherCircle.attr('cx');
         const otherCircleY = +otherCircle.attr('cy');
 
-        // 计算当前圆圈与另一个圆圈之间的距离
+        // Calculate the distance between the current circle and another circle
         const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
 
-        // 如果距离小于阈值，则隐藏连接线；否则，显示连接线
+        // If the distance is less than the threshold, hide the connection line; otherwise, show the connection line
         if (distance < 100) {
           line.style('opacity', 0);
         } else {
@@ -369,18 +503,18 @@ if (direction === 'outgoing') {
       const startId = text.attr('startId');
       const endId = text.attr('nodeId');
 
-      // 检查连接线的起点和终点是否与当前拖拽的圆圈相关联
+      // Checks whether the start and end points of the connecting line are associated with the currently dragged circle
       if (startId === nodeId || endId === nodeId) {
-        // 获取另一个圆圈的位置
+        // Get the position of another circle
         const otherCircleId = startId === nodeId ? endId : startId;
         const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
         const otherCircleX = +otherCircle.attr('cx');
         const otherCircleY = +otherCircle.attr('cy');
 
-        // 计算当前圆圈与另一个圆圈之间的距离
+        // Calculate the distance between the current circle and another circle
         const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
 
-        // 如果距离小于阈值，则隐藏连接线；否则，显示连接线
+        // If the distance is less than the threshold, hide the connection line; otherwise, show the connection line
         if (distance < 100) {
           text.style('opacity', 0);
         } else {
@@ -389,8 +523,9 @@ if (direction === 'outgoing') {
       }
     });
   }
+  
   function updateMainClassRelatedLines(newX, newY, nodeId) {
-    // 遍历所有连接线
+    // Traverse all connecting lines
     d3.selectAll('.link-text').each(function() {
       const text = d3.select(this);
       const textNodeId = text.attr('nodeId');
@@ -402,20 +537,20 @@ if (direction === 'outgoing') {
         const startId = line.attr('startId');
         const endId = line.attr('nodeId');
 
-        // 检查连接线的起点或终点是否与所选圆圈相匹配
+        // Checks whether the start or end point of the connecting line matches the selected circle
         if (startId === nodeId || endId === nodeId) {
-            // 获取连接线的路径属性
+            // Get the path properties of the connection line
             const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
             const circleX = +relatedCircle.attr('cx');
             const circleY = +relatedCircle.attr('cy');
             const circleRadius = +relatedCircle.attr('r');
             const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
 
-            // 更新连接线的路径
+            // Update the path of the connecting line
             const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
             line.attr('d', updatedLinkPath);
 
-            // 更新连接线上文字的位置
+            // Update the position of the text on the connecting line
             if (endId === textNodeId && startId === textStartId) {
               const midX = (newX + circleX) / 2;
               const midY = (newY + circleY) / 2;
@@ -426,14 +561,18 @@ if (direction === 'outgoing') {
 })}
   
 
-  // 更新连接线的位置
+
+
+  
+
+  // Update the position of the connection line
   function updateLink(sourceX,sourceY,Intersection) {
     const targetX = +relatedDisk.select('circle').attr('cx');
     const targetY = +relatedDisk.select('circle').attr('cy');
     const linkPath = `M${sourceX + Intersection[0]},${sourceY + Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
     link.attr('d', linkPath);
 
-    // 更新连接线上文字的位置
+    // Update the position of the text on the connecting line
     const midX = (sourceX + targetX) / 2;
     const midY = (sourceY + targetY) / 2;
     text.attr('x', midX).attr('y', midY);
@@ -441,13 +580,13 @@ if (direction === 'outgoing') {
     link.attr('marker-end', markerEnd);
   }}
 
-  // 右键点击事件处理函数
+  // Right click event handler function
   function displayContextMenu(event, newNode: $rdf.NamedNode, store: $rdf.Store) {
     event.preventDefault();
     const x = event.clientX;
     const y = event.clientY;
     
-    // 创建一个右键菜单
+    // Create a right-click menu
     const contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
     contextMenu.style.position = 'absolute';
@@ -457,14 +596,14 @@ if (direction === 'outgoing') {
     contextMenu.style.border = '1px solid #ccc';
     contextMenu.style.padding = '5px';
 
-    // 定义菜单项
+    // Define menu items
     const menuItems = [
       { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
       { action: 'expandRelations', content: 'Expand/Hide Relations' },
       { action: 'removeClass', content: 'Remove Class' },
     ];
 
-    // 添加菜单项
+    // Add menu item
     menuItems.forEach((item) => {
       const menuItem = document.createElement('div');
       menuItem.textContent = item.content;
@@ -487,7 +626,7 @@ if (direction === 'outgoing') {
     }
   }
 
-  // 菜单项点击处理函数
+  // Menu item click handler function
   function handleMenuItemClick(action, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log('Menu item clicked:', action);
@@ -531,7 +670,7 @@ if (direction === 'outgoing') {
           console.error('RDF store is not available.');
         }
       } else if (action === 'removeClass') {
-        removeSelectedClass(nodeId); // 传入 nodeId
+        removeSelectedClass(nodeId); // Pass in nodeId
       }
     } catch (error) {
       console.error('Error handling menu item click:', error);
@@ -573,11 +712,11 @@ function checkSubHide(classId) {
 }
 
 function hideSubs(classId, newNode) {
-    const hiddenNodes = {}; // 用于存储已经隐藏的节点ID
+    const hiddenNodes = {}; // Used to store hidden node IDs
     hideRelatedSubs(classId);
 
     function hideRelatedSubs(classId) {
-        // 获取与当前节点相关的连接线信息
+        // Get the connection line information related to the current node
         const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
         connectedClasses.forEach(({ target }) => {
             if (!target) {
@@ -588,12 +727,12 @@ function hideSubs(classId, newNode) {
             }
             const x = target.value;
             if (x!= newNode.value){
-            // 如果该节点已经被隐藏，则跳过
+            // If the node is already hidden, skip
             if (hiddenNodes[x]) {
                 return;
             }
             const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-            // 隐藏连接线和相关元素
+            // Hide connecting lines and related elements
             if (!hasOtherConnections && x !== newNode.value) {
                 hideElement(x);
             }
@@ -601,9 +740,9 @@ function hideSubs(classId, newNode) {
               svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
               svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
               }
-            // 将当前节点标记为已隐藏
+            // Mark current node as hidden
             hiddenNodes[x] = true;
-            // 获取与当前节点相关的子节点并递归隐藏它们
+            // Get the child nodes related to the current node and hide them recursively
             hideRelatedSubs(x);
             hideRelatedElements(x,newNode);
         }});
@@ -620,13 +759,13 @@ function hideSubs(classId, newNode) {
             }
             const x = target.value;
             if (x!=newNode.value){
-            // 如果该节点已经被隐藏，则跳过
+            // If the node is already hidden, skip
             if (hiddenNodes[x]) {
                 return;
             }
-            // 判断是否存在除了与指定节点相关的其他连线
+            // Determine whether there are other connections besides the specified node
             const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-            // 隐藏连接线和相关元素
+            // Hide connecting lines and related elements
             if (!hasOtherConnections && x !== newNode.value) {
                 hideElement(x);
             }
@@ -635,28 +774,28 @@ function hideSubs(classId, newNode) {
               svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
               svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
               }
-            // 将当前节点标记为已隐藏
+            // Mark current node as hidden
             hiddenNodes[x] = true;
-            // 获取与当前节点相关的子节点并递归隐藏它们
+            // Get the child nodes related to the current node and hide them recursively
             hideRelatedElements(x, newNode);
         }});
     }
 
     function hasOtherConnectionsExcept(nodeId, newNode) {
-        // 获取所有的线元素
+        // Get all line elements
         const lines = svg.selectAll('.link').filter(function() {
             return d3.select(this).style('display') !== 'none';
         });
 
         let otherConnectionsExist = false;
 
-        // 遍历所有线元素
+        // Traverse all line elements
         lines.each(function() {
             const line = d3.select(this);
             const lineNodeId = line.attr('nodeId');
             const lineStartId = line.attr('startId');
 
-            // 判断线的起始节点或者结束节点是否为给定的 nodeId
+            // Determine whether the starting node or ending node of the line is the given nodeId
             if ((lineNodeId === nodeId || lineStartId === nodeId) && 
                 lineNodeId !== newNode.value && lineStartId !== newNode.value) {
                 otherConnectionsExist = true;
@@ -672,29 +811,29 @@ function hideSubs(classId, newNode) {
           const lineNodeId = line.getAttribute('nodeId');
           const lineStartId = line.getAttribute('startId');
           if (lineNodeId === nodeId && lineStartId === startId) {
-              return true; // 找到了匹配的直线
+              return true; // Matching straight line found
           }
       }
-      return false; // 未找到匹配的直线
+      return false; // No matching line found
   }
 
     function hideElement(nodeId) {
-        // 隐藏连接线
+        // Hide connecting lines
         svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
-        // 隐藏连接线上的文字
+        // Hide text on connecting lines
         svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
-        // 隐藏圆圈
+        // Hide circle
         svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
         svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
     }
 }
 
 function ExpandHavingSubs(classId) {
-  const expandedNodes = {}; // 用于存储已经展开的节点ID
+  const expandedNodes = {}; // Used to store expanded node IDs
   expandRelatedSubs(classId);
   
   function expandRelatedSubs(nodeId) {
-      // 获取与当前节点相关的连接线信息
+      // Get the connection line information related to the current node
       const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
       
       connectedClasses.forEach(({ target }) => {
@@ -702,48 +841,48 @@ function ExpandHavingSubs(classId) {
           return;
       }
           const connectedNodeId = target.value; 
-          // 如果该节点已经展开，则跳过
+          // If the node is already expanded, skip
           if (expandedNodes[connectedNodeId]) {
               return;
           }
-          // 展开连接线
+          // Expand connecting lines
           svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开连接线上的文字
+          // Expand the text on the connecting line
           svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开圆圈
+          // expand circle
           svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 将当前节点标记为已展开
+          // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // 获取与当前节点相关的子节点并递归展开它们
+          // Get the child nodes related to the current node and expand them recursively
           expandRelatedSubs(connectedNodeId);
           expandRelatedElements(connectedNodeId);
       });
   }
   
   function expandRelatedElements(nodeId) {
-      // 获取与当前节点相关的连接线信息
+      // Get the connection line information related to the current node
       const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
       
       connectedClasses.forEach(({ target }) => {
         if (!target) {
           return;
       }
-          const connectedNodeId = target.value; // 修改变量名为 connectedNodeId
-          // 如果该节点已经展开，则跳过
+          const connectedNodeId = target.value; // Modify the variable name connectedNodeId
+          // If the node is already expanded, skip
           if (expandedNodes[connectedNodeId]) {
               return;
           }
-          // 展开连接线
+          // Expand connection line
           svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开连接线上的文字
+          // Expand the text on the connecting line
           svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开圆圈
+          // expand circle
           svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 将当前节点标记为已展开
+          // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // 获取与当前节点相关的子节点并递归展开它们
+          // Get the child nodes related to the current node and expand them recursively
           expandRelatedElements(connectedNodeId);
       });
   }
@@ -787,11 +926,11 @@ function checkRelationHide(classId) {
 
 
 function hideRelations(classId, newNode) {
-  const hiddenNodes = {}; // 用于存储已经隐藏的节点ID
+  const hiddenNodes = {}; // Used to store hidden node IDs
   hideRelatedElements(classId);
 
   function hideRelatedElements(classId) {
-      // 获取与当前节点相关的连接线信息
+      // Get the connection line information related to the current node
       const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
       connectedClasses.forEach(({ target }) => {
           if (!target) {
@@ -802,12 +941,12 @@ function hideRelations(classId, newNode) {
           }
           const x = target.value;
           if (x !== newNode.value) {
-              // 如果该节点已经被隐藏，则跳过
+              // If the node is already hidden, skip
               if (hiddenNodes[x]) {
                   return;
               }
               const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-              // 隐藏连接线和相关元素
+              // Hide connecting lines and related elements
               if (!hasOtherConnections && x !== newNode.value) {
                   hideElement(x);
               }
@@ -816,7 +955,7 @@ function hideRelations(classId, newNode) {
                 svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
                 }
               hiddenNodes[x] = true;
-              // 获取与当前节点相关的子节点并递归隐藏它们
+              // Get the child nodes related to the current node and hide them recursively
               hideRelatedElements(x);
               hideRelatedSubs(x, newNode);
           }
@@ -834,12 +973,12 @@ function hideRelations(classId, newNode) {
           }
           const x = target.value;
           if (x !== newNode.value) {
-              // 如果该节点已经被隐藏，则跳过
+              // If the node is already hidden, skip
               if (hiddenNodes[x]) {
                   return;
               }
               const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-              // 隐藏连接线和相关元素
+              // Hide connecting lines and related elements
               if (!hasOtherConnections && x !== newNode.value) {
                 console.log(x)
                   hideElement(x);
@@ -849,7 +988,7 @@ function hideRelations(classId, newNode) {
               svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
               }
               hiddenNodes[x] = true;
-              // 获取与当前节点相关的子节点并递归隐藏它们
+              // Get the child nodes related to the current node and hide them recursively
               hideRelatedSubs(x, newNode);
           }
       });
@@ -861,27 +1000,27 @@ function hideRelations(classId, newNode) {
         const lineNodeId = line.getAttribute('nodeId');
         const lineStartId = line.getAttribute('startId');
         if (lineNodeId === nodeId && lineStartId === startId) {
-            return true; // 找到了匹配的直线
+            return true; // Matching straight line found
         }
     }
-    return false; // 未找到匹配的直线
+    return false; // No matching line found
 }
 
   function hasOtherConnectionsExcept(nodeId, newNode) {
-      // 获取所有的线元素
+      // Get all line elements
       const lines = svg.selectAll('.link').filter(function() {
           return d3.select(this).style('display') !== 'none';
       });
 
       let otherConnectionsExist = false;
 
-      // 遍历所有线元素
+      // Traverse all line elements
       lines.each(function() {
           const line = d3.select(this);
           const lineNodeId = line.attr('nodeId');
           const lineStartId = line.attr('startId');
 
-          // 判断线的起始节点或者结束节点是否为给定的 nodeId
+          // Determine whether the starting node or ending node of the line is the given nodeId
           if ((lineNodeId === nodeId || lineStartId === nodeId) && 
               lineNodeId !== newNode.value && lineStartId !== newNode.value) {
               otherConnectionsExist = true;
@@ -892,11 +1031,11 @@ function hideRelations(classId, newNode) {
   }
 
   function hideElement(nodeId) {
-      // 隐藏连接线
+      // Hide connecting lines
       svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
-      // 隐藏连接线上的文字
+      // Hide text on connecting lines
       svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
-      // 隐藏圆圈
+      // Hide circle
       svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
       svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
   }
@@ -905,62 +1044,62 @@ function hideRelations(classId, newNode) {
 
 
 function ExpandHavingRelations(classId) {
-  const expandedNodes = {}; // 用于存储已经展开的节点ID
+  const expandedNodes = {}; // Used to store expanded node IDs
   expandRelatedElements(classId);
   function expandRelatedElements(nodeId) {
-      // 获取与当前节点相关的连接线信息
+      // Get the connection line information related to the current node
       const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
       connectedClasses.forEach(({ target }) => {
         if (!target) {
           return;
       }
           const connectedNodeId = target.value;
-          // 如果该节点已经展开，则跳过
+          // If the node is already expanded, skip
           if (expandedNodes[connectedNodeId]) {
               return;
           }
-          // 展开连接线
+          // Expand connecting lines
           svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开连接线上的文字
+          // Expand the text on the connecting line
           svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // 展开圆圈
+          // expand circle
           svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-              // 将当前节点标记为已展开
+              // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // 获取与当前节点相关的子节点并递归展开它们
+          // Get the child nodes related to the current node and expand them recursively
           expandRelatedElements(connectedNodeId);
           expandRelatedSubs(connectedNodeId);
       });
   }
   function expandRelatedSubs(nodeId) {
-    // 获取与当前节点相关的连接线信息
+    // Get the connection line information related to the current node
     const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
     connectedClasses.forEach(({ target }) => {
       if (!target) {
         return;
     }
         const connectedNodeId = target.value;
-        // 如果该节点已经展开，则跳过
+        // If the node is already expanded, skip
         if (expandedNodes[connectedNodeId]) {
             return;
         }
-        // 展开连接线
+        // Expand connecting lines
         svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // 展开连接线上的文字
+        // Expand the text on the connecting line
         svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // 展开圆圈
+        // expand circle
         svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
         svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-            // 将当前节点标记为已展开
+            // Mark current node as expanded
         expandedNodes[connectedNodeId] = true;
-        // 获取与当前节点相关的子节点并递归展开它们
+        // Get the child nodes related to the current node and expand them recursively
         expandRelatedElements(connectedNodeId);
     });
 }
 }
 
-  // 扩展关系
+  // extended relationship
   function expandRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log('Expanding relation for:', newNode.value);
@@ -984,7 +1123,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
         const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count);
+        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setSelectedClassDetails);
         count=count+1;
       });
     } catch (error) {
@@ -992,40 +1131,44 @@ console.log('圆圈的位置:', circleCX, circleCY);
     }
   }
 
-  // 扩展子类
+  // Extend subclass
   function expandSubclasses(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
-      console.log('Expanding relation for:', newNode.value);
-      const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
-      const circleCX = +selectedCircle.attr('cx');
-      const circleCY = +selectedCircle.attr('cy');
+        console.log('Expanding relation for:', newNode.value);
+        const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
+        const circleCX = +selectedCircle.attr('cx');
+        const circleCY = +selectedCircle.attr('cy');
 
-      if (!newNode || !store) {
-        console.error('No node selected or RDF store is not available.');
-        return;
-      }
-      
-      const clickedNode = $rdf.namedNode(newNode.value);
-      console.log(clickedNode);
-      const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-      console.log(outgoingConnectedClasses);
-      let count=0;
-      outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-        console.log(target, propertyUri);
-        const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY},  store,mainClassRef,nodeId,count);
-        count=count+1;
- 
-      });
+        if (!newNode || !store) {
+            console.error('No node selected or RDF store is not available.');
+            return;
+        }
+        
+        const clickedNode = $rdf.namedNode(newNode.value);
+        console.log(clickedNode);
+        const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
+        console.log(outgoingConnectedClasses);
+        let count = 0;
+        outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+            if (target && target.value) { // Add checks for target and target.value
+                console.log(target, propertyUri);
+                const mainClassPosition = mainClassRef.current.getBoundingClientRect();
+                createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count, setSelectedClassDetails);
+                count = count + 1;
+            } else {
+                console.warn('Skipping target with null value:', target);
+            }
+        });
     } catch (error) {
-      console.error('Error expanding subclasses:', error);
+        console.error('Error expanding subclasses:', error);
     }
-  }
+}
 
-  // 删除选定的类
-  // 删除选定的类
+
+
+  // Delete selected classes
 function removeSelectedClass(nodeId: string) {
-  // 选择要删除的圆圈、文本、连接线和连接线上的文字
+  // Select circles, text, connectors, and text on connectors to delete
   const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
   const selectedText = svg.select(`text[nodeId="${nodeId}"]`);
   const relatedLinks = svg.selectAll(`.link[nodeId="${nodeId}"], .link[startId="${nodeId}"]`);
@@ -1036,7 +1179,7 @@ function removeSelectedClass(nodeId: string) {
     const lineNodeId = line.attr('nodeId');
     removeSelectedClass(lineNodeId);})
 
-  // 移除选定的圆圈、文本、连接线和连接线上的文字
+  // Remove selected circles, text, connectors, and text on connectors
   selectedCircle.remove();
   selectedText.remove();
   relatedLinks.remove();
