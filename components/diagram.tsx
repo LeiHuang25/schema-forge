@@ -974,6 +974,15 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             let count=0;
 
             outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+                if (!target || !target.value) {
+                    console.error('Target node or its value is null.');
+                    return;
+                }
+
+                if (!target || !target.value) {
+                console.error('Target node or its value is null.');
+                return;
+            }
                 const targetValue = target.value;
                 if (expandedValues.has(targetValue)) {
                     console.log(`Subclass with target value ${targetValue} has already been expanded.`);
@@ -1026,54 +1035,38 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
     }
 
     function addNewSubclass(classId){
-        // 创建弹出框
+        // Create a popup
         const subclassInput = prompt("Enter the name of the new subclass:");
         if (subclassInput !== null && subclassInput !== "") {
             const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
             if (relationInput !== null && relationInput !== "") {
-                // 在这里执行将新子类添加到原来的类中的操作
+                // Add the new subclass to the original class
                 console.log("New subclass:", subclassInput);
                 console.log("Relationship:", relationInput);
 
-                // 获取原始类圆圈的位置
-                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
-                const cxValue = +selectedCircle.attr('cx');
-                const cyValue = +selectedCircle.attr('cy');
+                // Build the absolute URI of the subclass node
+                const subclassUri = `https://schemaForge.net/pattern/${subclassInput.replace(/\s+/g, '-')}`;
 
-                // 计算新子类圆圈的位置（在原始类圆圈的正下方）
-                const newCyValue = cyValue + 100;
+                // Create named nodes using absolute URIs
+                const newSubclassNode = $rdf.namedNode(subclassUri);
+                // Get the original class node
+                const originalClassNode = $rdf.namedNode(classId);
+                // Construct an absolute URI of a relationship node
+                const relationUri = `https://schemaForge.net/relation/${relationInput.replace(/\s+/g, '-')}`;
+                // Create named nodes using absolute URIs
+                const relationshipNode = $rdf.namedNode(relationUri);
 
-                // Generate a URI for the new subclass
-                const subclassUri = `http://example.com/${subclassInput.replace(/\s+/g, '-')}`;
+                // Add new subclassed types to storage
+                store.add(newSubclassNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
 
-                // Add statements to the RDF store to represent the new subclass and its relationship to the original class
-                const subclassNode = $rdf.namedNode(subclassUri);
-                const classNode = $rdf.namedNode(classId);
-                const relationshipNode = $rdf.namedNode(relationInput);
+                // Add triples to repository
+                store.add(originalClassNode, relationshipNode, newSubclassNode);
 
-                // Add subclass type statement
-                store.add(subclassNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                // Print the repository contents to check if the new subclass was successfully added
+                console.log("Updated RDF Store:", store);
 
-                // Add subclass relationship statement
-                store.add(subclassNode, relationshipNode, classNode);
-
-                // Update the canvas to display the new subclass
-                const subclassLabel = $rdf.lit(subclassInput);
-
-                createDiskAndLink(
-                    d3.select(svgRef.current).select('g'),
-                    subclassNode,
-                    subclassUri,
-                    'outgoing',
-                    subclassInput,
-                    { x: cxValue, y: cyValue },
-                    store,
-                    mainClassRef,
-                    classId,
-                    0,
-                    setSelectedClassDetails
-
-                );
+                // Extend new subclass
+                expandSubclasses(newSubclassNode.uri);
             } else {
                 console.log("Relationship input is empty.");
             }

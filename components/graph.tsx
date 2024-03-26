@@ -231,7 +231,7 @@ export const createDiskAndLink = (
 
   relatedDisk
     .append('circle')
-    .attr('cx', diskX+20)
+    .attr('cx', diskX)
     .attr('cy', diskY)
     .attr('r', diskRadius)
     .style('fill', 'white')
@@ -385,7 +385,9 @@ export const createDiskAndLink = (
     .attr('y', diskY)
     .attr('nodeId', nodeId)
     .text(label)
-    .style('font-size', '14px');
+    .style('font-size', '14px')
+    .style("text-anchor", "middle")
+    .style("alignment-baseline", "middle");
 
   // Set the source and target points of the link
   const sourceX = mainClassPosition.x;
