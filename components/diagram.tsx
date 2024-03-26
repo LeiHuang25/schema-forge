@@ -391,7 +391,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                         d3.select(svgRef.current).select('g'),
                         target,
                         propertyUri,
-                        'outgoing',
+                        'incoming',
                         target.value,
                         { x: cxValue, y: cyValue },
                         store,
@@ -505,27 +505,23 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
         const menuItems = [
             { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
             { action: 'expandRelations', content: 'Expand/Hide Relations' },
-            { action: 'removeClass', content: 'Remove Class' }
+            { action: 'removeClass', content: 'Remove Class' },
+            { action: 'addSubclass', content: 'Add New Subclass' },
+            { action: 'addRelation', content : 'Add New Relation'},
+            { action: 'addAttribute', content : 'Add New Attribute'}
         ];
 
         menuItems.forEach(item => {
             const menuItem = document.createElement("div");
             menuItem.textContent = item.content;
             menuItem.style.cursor = "pointer";
-            menuItem.addEventListener("click", () => handleMenuItemClick(item.action, classId));
+            menuItem.addEventListener("click", () => {handleMenuItemClick(item.action, classId);
+                contextMenu.remove();});
             contextMenu.appendChild(menuItem);
         });
 
         document.body.appendChild(contextMenu);
 
-        document.addEventListener("click", closeContextMenu);
-
-        function closeContextMenu(event) {
-            if (!contextMenu.contains(event.target)) {
-                contextMenu.remove();
-                document.removeEventListener("click", closeContextMenu);
-            }
-        }
     }
     
 
@@ -569,7 +565,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                     }
                     else {
                         console.log("Expanding relations...");
-                        expandRelations(classId); 
+                        expandRelations(classId);
                         console.log("Relations expanded successfully.");
                     }
                 } else {
@@ -577,6 +573,8 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 }
             } else if (action === 'removeClass') {
                 removeSelectedClass(classId);
+            } else if (action === 'addSubclass') {
+                addNewSubclass(classId);
             }
         } catch (error) {
             console.error('Error handling menu item click:', error);
@@ -1026,6 +1024,64 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             relatedLinks.remove();
             relatedTexts.remove();
     }
+
+    function addNewSubclass(classId){
+        // 创建弹出框
+        const subclassInput = prompt("Enter the name of the new subclass:");
+        if (subclassInput !== null && subclassInput !== "") {
+            const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+            if (relationInput !== null && relationInput !== "") {
+                // 在这里执行将新子类添加到原来的类中的操作
+                console.log("New subclass:", subclassInput);
+                console.log("Relationship:", relationInput);
+
+                // 获取原始类圆圈的位置
+                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                const cxValue = +selectedCircle.attr('cx');
+                const cyValue = +selectedCircle.attr('cy');
+
+                // 计算新子类圆圈的位置（在原始类圆圈的正下方）
+                const newCyValue = cyValue + 100;
+
+                // Generate a URI for the new subclass
+                const subclassUri = `http://example.com/${subclassInput.replace(/\s+/g, '-')}`;
+
+                // Add statements to the RDF store to represent the new subclass and its relationship to the original class
+                const subclassNode = $rdf.namedNode(subclassUri);
+                const classNode = $rdf.namedNode(classId);
+                const relationshipNode = $rdf.namedNode(relationInput);
+
+                // Add subclass type statement
+                store.add(subclassNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+
+                // Add subclass relationship statement
+                store.add(subclassNode, relationshipNode, classNode);
+
+                // Update the canvas to display the new subclass
+                const subclassLabel = $rdf.lit(subclassInput);
+
+                createDiskAndLink(
+                    d3.select(svgRef.current).select('g'),
+                    subclassNode,
+                    subclassUri,
+                    'outgoing',
+                    subclassInput,
+                    { x: cxValue, y: cyValue },
+                    store,
+                    mainClassRef,
+                    classId,
+                    0,
+                    setSelectedClassDetails
+
+                );
+            } else {
+                console.log("Relationship input is empty.");
+            }
+        } else {
+            console.log("Subclass input is empty.");
+        }
+    }
+
     return (
         <div style={{ height: '100vh', overflowY: 'auto' }}>
             <div>

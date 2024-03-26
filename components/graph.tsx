@@ -3,6 +3,7 @@ import * as $rdf from 'rdflib';
 import * as rdfHelpers from '@/components/rdfHelpers';
 import { start } from 'repl';
 import { has } from 'lodash';
+import { Lancelot } from 'next/font/google';
 
 // define the type of direction
 type Direction = 'incoming' | 'outgoing';
@@ -22,8 +23,8 @@ export const createDiskAndLink = (
   count:number,
   setSelectedClassDetails: (classDetails: any) => void
 ): void => {
-  
-  
+
+
   if (svg.selectAll(`circle[nodeId="${nodeId}"]`).size() > 0){
     const sourceX = mainClassPosition.x;
     const sourceY = mainClassPosition.y;
@@ -55,6 +56,7 @@ export const createDiskAndLink = (
         // calculate the middle point of the link
     const midX = (sourceX + targetX) / 2;
     const midY = (sourceY + targetY) / 2;
+    
 
 // create the text of the link
     const text = svg.append('text')
@@ -67,10 +69,23 @@ export const createDiskAndLink = (
       .style('font-size', '14px')
       .attr('x', midX)
       .attr('y', midY);
+      updateLink(sourceX, sourceY, targetX, targetY, link,text);
 
     // add the drag event to the circle and the text
     relatedDisk.call(d3.drag().on('drag', dragged));
     labelText.call(d3.drag().on('drag', dragged));
+
+    function calculateDecalage(x1, y1, x2, y2, r) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dr = Math.sqrt(dx * dx + dy * dy);
+      const sin = dy/dr;
+      const cos = dx/dr;
+  
+      const x = (r * cos);
+      const y = (r * sin);
+      return [x, y];
+    }
 
 
     // define the drag event
@@ -79,7 +94,54 @@ export const createDiskAndLink = (
       const newY = event.y;
       const nodeId = d3.select(this).attr('nodeId');
       const selectedLines = d3.selectAll('.link[nodeId="' + nodeId + '"]');
+      svg.selectAll('.link').each(function(){
+        const line = d3.select(this);
+        const startId = line.attr('startId');
+        const endId = line.attr('nodeId');
   
+        // Checks whether the start and end points of the connecting line are associated with the currently dragged circle
+        if (startId === nodeId || endId === nodeId) {
+          // Get the position of another circle
+          const otherCircleId = startId === nodeId ? endId : startId;
+          const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
+          const otherCircleX = +otherCircle.attr('cx');
+          const otherCircleY = +otherCircle.attr('cy');
+  
+          // Calculate the distance between the current circle and another circle
+          const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+  
+          // If the distance is less than the threshold, hide the connection line; otherwise, show the connection line
+          if (distance < 100) {
+            line.style('opacity', 0);
+          } else {
+            line.style('opacity', 1);
+          }
+        }
+      });
+      svg.selectAll('.link-text').each(function(){
+        const text = d3.select(this);
+        const startId = text.attr('startId');
+        const endId = text.attr('nodeId');
+  
+        // Checks whether the start and end points of the connecting line are associated with the currently dragged circle
+        if (startId === nodeId || endId === nodeId) {
+          // Get the position of another circle
+          const otherCircleId = startId === nodeId ? endId : startId;
+          const otherCircle = svg.select(`circle[nodeId="${otherCircleId}"]`);
+          const otherCircleX = +otherCircle.attr('cx');
+          const otherCircleY = +otherCircle.attr('cy');
+  
+          // Calculate the distance between the current circle and another circle
+          const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+  
+          // If the distance is less than the threshold, hide the connection line; otherwise, show the connection line
+          if (distance < 100) {
+            text.style('opacity', 0);
+          } else {
+            text.style('opacity', 1);
+          }
+        }
+      });
       selectedLines.each(function() {
         const selectedLine = d3.select(this);
         const startId = selectedLine.attr('startId');
@@ -96,67 +158,52 @@ export const createDiskAndLink = (
         updateLink(circleX, circleY, newX, newY, selectedLine,linkText);
          // update the position of the circle
        relatedDisk.attr('cx', newX).attr('cy', newY);
-       labelText.attr('x', newX-25).attr('y', newY);
+       labelText.attr('x', newX).attr('y', newY);
   
     });
     
       };
 
-      function updateMainClassRelatedLines(newX, newY, nodeId) {
-        // iterate over all the link
-        d3.selectAll('.link-text').each(function() {
-          const text = d3.select(this);
-          const textNodeId = text.attr('nodeId');
-          const textStartId = text.attr('startId');
-      
-        d3.selectAll('.link').each(function() {
-            const line = d3.select(this);
-            const startId = line.attr('startId');
-            const endId = line.attr('nodeId');
+  function updateMainClassRelatedLines(newX, newY, nodeId) {
+    // Traverse all connecting lines
+    d3.selectAll('.link-text').each(function() {
+      const text = d3.select(this);
+      const textNodeId = text.attr('nodeId');
+      const textStartId = text.attr('startId');
+
     
-            // Checks whether the start or end point of the connecting line matches the selected circle
-            if (startId === nodeId) {
-                // Get the path properties of the connection line
-                const linkPath = line.attr('d');
-    
-                // Extract endpoint coordinates using regular expressions
-                const [, targetX, targetY] = linkPath.match(/L([^,]+),([^Z]+)/);
-                // Update the path of the connecting line
-                const updatedLinkPath = `M${newX},${newY} L${targetX},${targetY}`;
-                line.attr('d', updatedLinkPath);
-    
-                // Update the position of the text on the connecting line
-                if (endId === textNodeId && startId === textStartId) {
-                  const midX = (parseInt(newX) + parseInt(targetX)) / 2;
-                  const midY = (parseInt(newY) + parseInt(targetY)) / 2;
-                  line.attr('d', updatedLinkPath);
-                  text.attr('x', midX).attr('y', midY);
-              }
-            }
-            else if (endId === nodeId) {
-              // 获取连接线的路径属性
-              const linkPath = line.attr('d');
-  
-              // Get the path properties of the connection line
-              const [, startX, startY] = linkPath.match(/M([^,]+),([^Z]+)/);
-              const updatedLinkPath = `M${startX},${startY} L${newX},${newY}`;
-              line.attr('d', updatedLinkPath);
-  
-              // Update the position of the text on the connecting line
-              if (endId === textNodeId && startId === textStartId) {
-                const midX = (parseInt(startX) + parseInt(newX)) / 2;
-                const midY = (parseInt(startY) + parseInt(newY)) / 2;
-                line.attr('d', updatedLinkPath);
-                text.attr('x', midX).attr('y', midY);
-            }
+    d3.selectAll('.link').each(function() {
+        const line = d3.select(this);
+        const startId = line.attr('startId');
+        const endId = line.attr('nodeId');
+
+        // Checks whether the start or end point of the connecting line matches the selected circle
+        if (startId === nodeId || endId === nodeId) {
+            // Get the path properties of the connection line
+            const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
+            const circleX = +relatedCircle.attr('cx');
+            const circleY = +relatedCircle.attr('cy');
+            const circleRadius = +relatedCircle.attr('r');
+            const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
+
+            // Update the path of the connecting line
+            const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
+            line.attr('d', updatedLinkPath);
+
+            // Update the position of the text on the connecting line
+            if (endId === textNodeId && startId === textStartId) {
+              const midX = (newX + circleX) / 2;
+              const midY = (newY + circleY) / 2;
+              text.attr('x', midX).attr('y', midY);
           }
-        });
-    })}
-      
+        }
+    });
+})}
       
   // Update the position of the connection line
   function updateLink(startX, startY, endX, endY, line,linkText) {
-    const linkPath = `M${startX},${startY} L${endX},${endY}`;
+    const intersection = calculateDecalage(startX, startY, endX, endY, 50);
+    const linkPath = `M${startX+ intersection[0]},${startY+ intersection[1]} L${endX- intersection[0]},${endY-intersection[1]}`;
     line.attr('d', linkPath);
     // Update the position of the text on the connecting line
     const midX = (startX + endX) / 2;
@@ -184,7 +231,7 @@ export const createDiskAndLink = (
 
   relatedDisk
     .append('circle')
-    .attr('cx', diskX)
+    .attr('cx', diskX+20)
     .attr('cy', diskY)
     .attr('r', diskRadius)
     .style('fill', 'white')
@@ -330,13 +377,14 @@ export const createDiskAndLink = (
     };
 
   // Add text near circle
+  const label = rdfHelpers.getLabelFromURI(store, nodeId);
   const labelText = relatedDisk
     .append('text')
     .attr('class', 'node-label')
-    .attr('x', diskX - 25)
+    .attr('x', diskX)
     .attr('y', diskY)
     .attr('nodeId', nodeId)
-    .text(newNode.value.substring(newNode.value.lastIndexOf('/') + 1))
+    .text(label)
     .style('font-size', '14px');
 
   // Set the source and target points of the link
@@ -353,6 +401,7 @@ export const createDiskAndLink = (
   // Extract the part after the last slash in the path as an attribute
   const lastSlashIndex = property.lastIndexOf('/');
   const propertyName = lastSlashIndex !== -1 ? property.substring(lastSlashIndex + 1) : property;
+ 
 
   // Create connecting lines
   const link = svg
@@ -471,7 +520,7 @@ if (direction === 'outgoing') {
     updateLink(circleX,circleY,Intersection);
 
     // Update the position of related text
-    labelText.attr('x', newX - 25).attr('y', newY);
+    labelText.attr('x', newX).attr('y', newY);
     
     // Traverse all connecting lines and make the arrows transparent if the connection distance is too close
     svg.selectAll('.link').each(function(){
