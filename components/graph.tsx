@@ -21,10 +21,11 @@ export const createDiskAndLink = (
   mainClassRef: React.MutableRefObject<SVGElement | null>,
   classId:string,
   count:number,
+  setStore:React.Dispatch<React.SetStateAction<any>>,
   setSelectedClassDetails: (classDetails: any) => void
 ): void => {
-
-
+  
+  
   if (svg.selectAll(`circle[nodeId="${nodeId}"]`).size() > 0){
     const sourceX = mainClassPosition.x;
     const sourceY = mainClassPosition.y;
@@ -231,7 +232,7 @@ export const createDiskAndLink = (
 
   relatedDisk
     .append('circle')
-    .attr('cx', diskX)
+    .attr('cx', diskX+20)
     .attr('cy', diskY)
     .attr('r', diskRadius)
     .style('fill', 'white')
@@ -263,10 +264,15 @@ export const createDiskAndLink = (
       const classNode = $rdf.namedNode(selectedClass);
       const tableData=rdfHelpers.getDirectProperties(store, classNode);
       const tableData1=rdfHelpers.getDataProperties(store, classNode);
+      const inferreda=rdfHelpers.getInferredDataProperties(store,classNode);
      
       const attributeEntries = Object.entries(tableData1);
       // Build attributed string
       const attributeString = attributeEntries.map(([key, value]) => `${key}(${value})`).join(', ');
+
+      const attribute = Object.entries(inferreda);
+      // Build attributed string
+      const InferredAttr = attribute.map(([key, value]) => `${key}(${value})`).join(', ');
       
       // Get the selected circle element
       const selectedCircle = d3.select(`circle[nodeId="${selectedClass}"]`);
@@ -279,8 +285,9 @@ export const createDiskAndLink = (
       const superclass = rdfHelpers.getSuperClasses(store, classNode);
       const subclass = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
       const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
-      const InferredSubClass=rdfHelpers.getIndirectlyConnectedClasses(store,classNode);
-      const Inferredrelation=rdfHelpers.getIndirectlyIncomingClasses(store,classNode);
+      const InferredSubClass=rdfHelpers.getInferredSubclasses(store,classNode);
+      const Inferredrelation=rdfHelpers.getInferredRelation(store,classNode);
+       console.log(rdfHelpers.getInferredDataProperties(store,classNode))
      
       const superlist = superclass.map(superclass => superclass.superClass);
       const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
@@ -328,32 +335,7 @@ export const createDiskAndLink = (
               return null;
           }
       }).filter(item => item !== null);
-      const outgoingTargets = InferredOutgoing.map(item => item.target);
-// Extract target properties from InferredIncoming and merge into an array
-      const incomingTargets = InferredIncoming.map(item => item.target);
-
-// Merge two arrays
-      const allTargets = [...outgoingTargets, ...incomingTargets];
-
-      function combineAndBuildAttributes(store,...nodess) {
-          // Initialize an empty object to store the merged properties
-          const combinedData = {};
       
-          // Traverse all nodes, obtain the data attributes of each node and merge them into combinedData
-          nodess.forEach(nodes => {
-            nodes.forEach(node => {
-              const classNode = $rdf.namedNode(node);
-              const data = rdfHelpers.getDataProperties(store, classNode);
-              Object.assign(combinedData, data);
-
-          })});
-      
-          // Traverse the merged attributes and construct the attribute string
-          const combinedAttributes = Object.entries(combinedData).map(([key, value]) => `${key}(${value})`).join(', ');
-      
-          return combinedAttributes;
-      }
-      const InferredAttr=combineAndBuildAttributes(store,allTargets);
       
       // If the circle is selected, return relevant information
       if (isSelected) {
@@ -378,6 +360,7 @@ export const createDiskAndLink = (
 
   // Add text near circle
   const label = rdfHelpers.getLabelFromURI(store, nodeId);
+  console.log(label)
   const labelText = relatedDisk
     .append('text')
     .attr('class', 'node-label')
@@ -385,9 +368,7 @@ export const createDiskAndLink = (
     .attr('y', diskY)
     .attr('nodeId', nodeId)
     .text(label)
-    .style('font-size', '14px')
-    .style("text-anchor", "middle")
-    .style("alignment-baseline", "middle");
+    .style('font-size', '14px');
 
   // Set the source and target points of the link
   const sourceX = mainClassPosition.x;
@@ -652,7 +633,10 @@ if (direction === 'outgoing') {
       { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
       { action: 'expandRelations', content: 'Expand/Hide Relations' },
       { action: 'removeClass', content: 'Remove Class' },
-    ];
+      { action: 'addSubclass', content: 'Add New Subclass' },
+      { action: 'addRelation', content : 'Add New Relation'},
+      { action: 'addAttribute', content : 'Add New Attribute'}
+  ];
 
     // Add menu item
     menuItems.forEach((item) => {
@@ -723,6 +707,9 @@ if (direction === 'outgoing') {
       } else if (action === 'removeClass') {
         removeSelectedClass(nodeId); // Pass in nodeId
       }
+      else if (action === 'addSubclass') {
+        addNewSubclass(classId);
+    }
     } catch (error) {
       console.error('Error handling menu item click:', error);
     }
@@ -1174,7 +1161,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
         const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setSelectedClassDetails);
+        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails);
         count=count+1;
       });
     } catch (error) {
@@ -1204,7 +1191,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
             if (target && target.value) { // Add checks for target and target.value
                 console.log(target, propertyUri);
                 const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-                createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count, setSelectedClassDetails);
+                createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore, setSelectedClassDetails);
                 count = count + 1;
             } else {
                 console.warn('Skipping target with null value:', target);
@@ -1236,6 +1223,21 @@ function removeSelectedClass(nodeId: string) {
   relatedLinks.remove();
   relatedTexts.remove();
 
+}
+function addNewSubclass(classId) {
+  // Create a popup for subclass name input
+  const clickedNode = $rdf.namedNode(classId);
+  const subclassInput = prompt("Enter the name of the new subclass:");
+  if (!subclassInput) {
+      console.log("Subclass input is empty.");
+      return; // Early return if input is empty
+  }
+  const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  // 根据用户输入创建新类的 URI
+  const newClassUri = `http://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+  const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+  rdfHelpers.createClass(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  expandSubclasses(svg,clickedNode,store);
 }
 
 };

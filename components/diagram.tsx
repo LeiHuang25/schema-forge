@@ -6,7 +6,7 @@ import * as rdfHelpers from '@/components/rdfHelpers';
 import { rdfs } from 'ldkit/namespaces';
 import { time } from 'console';
 
-const Diagram = ({ selectedClass, store, setTableData }) => {
+const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
     const svgRef = useRef(null);
     const mainClassRef = useRef(null);
     const [selectedClassDetails, setSelectedClassDetails] = useState(null);
@@ -113,10 +113,15 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
         const classNode = $rdf.namedNode(selectedClass);
         const tableData=rdfHelpers.getDirectProperties(store, classNode);
         const tableData1=rdfHelpers.getDataProperties(store, classNode);
+        const inferreda=rdfHelpers.getInferredDataProperties(store,classNode);
        
         const attributeEntries = Object.entries(tableData1);
         // Build attributed string
         const attributeString = attributeEntries.map(([key, value]) => `${key}(${value})`).join(', ');
+  
+        const attribute = Object.entries(inferreda);
+        // Build attributed string
+        const InferredAttr = attribute.map(([key, value]) => `${key}(${value})`).join(', ');
         
         // Get the selected circle element
         const selectedCircle = d3.select(`circle[nodeId="${selectedClass}"]`);
@@ -129,8 +134,9 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
         const superclass = rdfHelpers.getSuperClasses(store, classNode);
         const subclass = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
         const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
-        const InferredSubClass=rdfHelpers.getIndirectlyConnectedClasses(store,classNode);
-        const Inferredrelation=rdfHelpers.getIndirectlyIncomingClasses(store,classNode);
+        const InferredSubClass=rdfHelpers.getInferredSubclasses(store,classNode);
+        const Inferredrelation=rdfHelpers.getInferredRelation(store,classNode);
+        
        
         const superlist = superclass.map(superclass => superclass.superClass);
         const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
@@ -178,32 +184,8 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                 return null;
             }
         }).filter(item => item !== null);
-        const outgoingTargets = InferredOutgoing.map(item => item.target);
-  // Extract target properties from InferredIncoming and merge into an array
-        const incomingTargets = InferredIncoming.map(item => item.target);
   
-  // Merge two arrays
-        const allTargets = [...outgoingTargets, ...incomingTargets];
-  
-        function combineAndBuildAttributes(store,...nodess) {
-            // Initialize an empty object to store the merged properties
-            const combinedData = {};
-        
-            // Traverse all nodes, obtain the data attributes of each node and merge them into combinedData
-            nodess.forEach(nodes => {
-              nodes.forEach(node => {
-                const classNode = $rdf.namedNode(node);
-                const data = rdfHelpers.getDataProperties(store, classNode);
-                Object.assign(combinedData, data);
-  
-            })});
-        
-            // Traverse the merged attributes and construct the attribute string
-            const combinedAttributes = Object.entries(combinedData).map(([key, value]) => `${key}(${value})`).join(', ');
-        
-            return combinedAttributes;
-        }
-        const InferredAttr=combineAndBuildAttributes(store,allTargets);
+       
         
         // If the circle is selected, return relevant information
         if (isSelected) {
@@ -926,6 +908,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
     
             incomingConnectedClasses.forEach(({ target, propertyUri }) => {
                 const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                console.log(target)
                 console.log(selectedCircle);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
@@ -944,6 +927,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                         mainClassRef,
                         classId,
                         count,
+                        setStore,
                         setSelectedClassDetails
                     );
                     count=count+1;
@@ -967,6 +951,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             const clickedNode = $rdf.namedNode(classId);
             console.log(clickedNode);
             const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
+            console.log(store);
             console.log(outgoingConnectedClasses);
         
             const expandedValues = new Set();
@@ -974,15 +959,6 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             let count=0;
 
             outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-                if (!target || !target.value) {
-                    console.error('Target node or its value is null.');
-                    return;
-                }
-
-                if (!target || !target.value) {
-                console.error('Target node or its value is null.');
-                return;
-            }
                 const targetValue = target.value;
                 if (expandedValues.has(targetValue)) {
                     console.log(`Subclass with target value ${targetValue} has already been expanded.`);
@@ -1004,6 +980,7 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
                     mainClassRef,
                     classId,
                     count,
+                    setStore,
                     setSelectedClassDetails
 
                 );
@@ -1034,47 +1011,21 @@ const Diagram = ({ selectedClass, store, setTableData }) => {
             relatedTexts.remove();
     }
 
-    function addNewSubclass(classId){
-        // Create a popup
+    function addNewSubclass(classId) {
+        // Create a popup for subclass name input
         const subclassInput = prompt("Enter the name of the new subclass:");
-        if (subclassInput !== null && subclassInput !== "") {
-            const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
-            if (relationInput !== null && relationInput !== "") {
-                // Add the new subclass to the original class
-                console.log("New subclass:", subclassInput);
-                console.log("Relationship:", relationInput);
-
-                // Build the absolute URI of the subclass node
-                const subclassUri = `https://schemaForge.net/pattern/${subclassInput.replace(/\s+/g, '-')}`;
-
-                // Create named nodes using absolute URIs
-                const newSubclassNode = $rdf.namedNode(subclassUri);
-                // Get the original class node
-                const originalClassNode = $rdf.namedNode(classId);
-                // Construct an absolute URI of a relationship node
-                const relationUri = `https://schemaForge.net/relation/${relationInput.replace(/\s+/g, '-')}`;
-                // Create named nodes using absolute URIs
-                const relationshipNode = $rdf.namedNode(relationUri);
-
-                // Add new subclassed types to storage
-                store.add(newSubclassNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
-
-                // Add triples to repository
-                store.add(originalClassNode, relationshipNode, newSubclassNode);
-
-                // Print the repository contents to check if the new subclass was successfully added
-                console.log("Updated RDF Store:", store);
-
-                // Extend new subclass
-                expandSubclasses(newSubclassNode.uri);
-            } else {
-                console.log("Relationship input is empty.");
-            }
-        } else {
+        if (!subclassInput) {
             console.log("Subclass input is empty.");
+            return; // Early return if input is empty
         }
+        const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+        // 根据用户输入创建新类的 URI
+        const newClassUri = `http://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+        const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+        rdfHelpers.createClass(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+        expandSubclasses(classId);
     }
-
+    
     return (
         <div style={{ height: '100vh', overflowY: 'auto' }}>
             <div>

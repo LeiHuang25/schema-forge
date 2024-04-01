@@ -1,11 +1,12 @@
 import * as $rdf from 'rdflib';
 
+
 export function getLabelFromURI(store, uri) {
     const node = $rdf.namedNode(uri);
     const labelTerm = store.any(node, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'));
     return labelTerm ? labelTerm.value : uri;
 }
-
+//getSubClasses
 export function getOutgoingConnectedClasses(store, clickedNode) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
@@ -28,13 +29,13 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
     }));
   }
 
-  export function getIndirectlyConnectedClasses(store, clickedNode) {
+  export function getInferredSubclasses(store, clickedNode) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const connectedClasses = new Set();
-    const queue = [clickedNode]; // Use a queue to store pending nodes
+    const queue = [clickedNode]; // 使用队列来存储待处理节点
 
     while (queue.length > 0) {
-        const currentNode = queue.shift(); // Remove the first node of the team
+        const currentNode = queue.shift(); // 取出队首节点
 
         const properties = store.match(
             null,
@@ -52,7 +53,7 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
                 );
                 if (typeStatements.some(typeStmt => typeStmt.object.equals(classTypeNode)) && !target.equals(clickedNode) && !connectedClasses.has(target)) {
                     connectedClasses.add(target);
-                    queue.push(target); // Add qualified nodes to the pending queue
+                    queue.push(target); // 将符合条件的节点加入待处理队列
                 }
             }
         });
@@ -104,14 +105,58 @@ export function getIncomingConnectedClasses(store, clickedNode) {
       propertyUri: stmt.subject.uri
     }));
   }
-  export function getIndirectlyIncomingClasses(store, clickedNode) {
+
+ export function getInferredSuperClasses(store, clickedNode) {
+    // Define a node for the RDF Schema class type
+    const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
+    const inferredSuperClasses = new Set();
+    const queue = [clickedNode]; // Use a queue to store nodes to be processed
+
+    while (queue.length > 0) {
+        const currentNode = queue.shift(); // Dequeue the first node
+
+        // Retrieve all superClass relationships pointing to the current node
+        const superClasses = store.match(
+            null,
+            $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'),
+            currentNode
+        );
+
+        superClasses.forEach(stmt => {
+            const superClass = stmt.subject;
+            // Check if this superClass is declared as an rdfs:Class
+            const isClass = store.match(
+                superClass,
+                $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+                classTypeNode
+            ).length > 0;
+
+            if (isClass && !superClass.equals(clickedNode) && !inferredSuperClasses.has(superClass)) {
+                inferredSuperClasses.add(superClass);
+                queue.push(superClass); // Add the node to the queue for further processing
+            }
+        });
+    }
+
+    // Remove classes that are directly connected through getIncomingConnectedClasses
+    const directlyConnectedSuperClasses = getIncomingConnectedClasses(store, clickedNode);
+    directlyConnectedSuperClasses.forEach(classItem => {
+        inferredSuperClasses.delete(classItem.target);
+    });
+
+    return Array.from(inferredSuperClasses); // Return the list of inferred superclasses
+}
+
+
+
+  export function getInferredRelation(store, clickedNode) {
     const directlyIncomingClasses = getIncomingConnectedClasses(store, clickedNode);
     const indirectlyIncomingClasses = new Set();
   
     function findIndirectlyIncomingClasses(node) {
         const incomingClasses = getIncomingConnectedClasses(store, node);
         incomingClasses.forEach(({ target }) => {
-            // Add this line of code to check if the node is the same as clickedNode
+            // 添加这一行代码来检查节点是否与 clickedNode 相同
             if (!target.equals(clickedNode) &&
                 !directlyIncomingClasses.some(({ target: directTarget }) => directTarget.equals(target)) &&
                 !indirectlyIncomingClasses.has(target)) {
@@ -144,6 +189,25 @@ export function getIncomingConnectedClasses(store, clickedNode) {
     return directProperties;
   }
 
+  export function getInferredObjectProperties(store, clickedNode) {
+    const InferredSubClass = getInferredSubclasses(store, clickedNode);
+    const InferredRelation = getInferredRelation(store, clickedNode);
+    const allInferredNodes = [...InferredSubClass, ...InferredRelation];
+    const combinedProperties = {};
+  
+    // 遍历所有推断出的节点，收集它们的数据属性
+    allInferredNodes.forEach(node => {
+        const classNode = $rdf.namedNode(node);
+        const properties = getDirectProperties(store, classNode);
+  
+        // 将当前节点的数据属性合并到总的属性对象中
+        Object.keys(properties).forEach(propertyKey => {
+            combinedProperties[propertyKey] = properties[propertyKey];
+        });
+    });
+    return combinedProperties;
+  }
+
   // this function returns key, value for each data property that has the node as domain and a literal as range
   export function getDataProperties(store: $rdf.IndexedFormula, node: $rdf.NamedNode): { [key: string]: string | number } {
     const dataProperties: { [key: string]: string | number } = {};
@@ -162,39 +226,56 @@ export function getIncomingConnectedClasses(store, clickedNode) {
   return dataProperties;
 };
 
-export function getInferredSuperClasses(store, clickedNode) {
-  const inferredClasses = new Set();
+export function getInferredDataProperties(store, clickedNode) {
+  const InferredSubClass = getInferredSubclasses(store, clickedNode);
+  const InferredRelation = getInferredRelation(store, clickedNode);
+  const allInferredNodes = [...InferredSubClass, ...InferredRelation];
+  const combinedProperties = {};
 
-    // Find all subclasses related to clickedNode
-    const subClasses = store.match(null, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), clickedNode);
-    subClasses.forEach(subClass => {
-        inferredClasses.add(subClass.subject.value); // Add a subclass to the inferred class collection
-    });
+  // 遍历所有推断出的节点，收集它们的数据属性
+  allInferredNodes.forEach(node => {
+      const classNode = $rdf.namedNode(node);
+      const properties = getDataProperties(store, classNode);
 
-    // Find all parent classes related to clickedNode
-    const superClasses = store.match(clickedNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), null);
-    superClasses.forEach(superClass => {
-        inferredClasses.add(superClass.object.value); // Add the parent class to the inferred class collection
-    });
-
-    return Array.from(inferredClasses);
+      // 将当前节点的数据属性合并到总的属性对象中
+      Object.keys(properties).forEach(propertyKey => {
+          combinedProperties[propertyKey] = properties[propertyKey];
+      });
+  });
+  return combinedProperties;
 }
 
+export function createClass(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
+    console.log("Creating new class:", classLabel);
+    // 创建新类节点
+    const classNode = $rdf.namedNode(classLabel);
+    const relationNode = $rdf.namedNode(relationUri);
+    // 将新类标记为 RDF 类型的一个实例
+    store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+    const label = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
+    const lastSlashIndex = classLabel.lastIndexOf('/');
+  const propertyName = lastSlashIndex !== -1 ? classLabel.substring(lastSlashIndex + 1) : classLabel;
+    store.add(classNode, label, propertyName);
 
-export function getInferredSubClasses(store, clickedNode) {
-  const inferredClasses = new Set();
+    // 如果指定了超类，则创建 subClassOf 关系
+    if (superClassUri) {
+        const superClassNode = $rdf.namedNode(superClassUri);
+        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
+        const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
+        const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
+        store.add(relationNode, exampleProperty, superClassNode); // 将新类作为 domain
+        store.add(relationNode, examplePropert, classNode);
 
-    // Find all subclasses related to clickedNode
-    const subClasses = store.match(null, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), clickedNode);
-    subClasses.forEach(subClass => {
-        inferredClasses.add(subClass.subject.value); // Add a subclass to the inferred class collection
-    });
+    }
 
-    // Find all parent classes related to clickedNode
-    const superClasses = store.match(clickedNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), null);
-    superClasses.forEach(superClass => {
-        inferredClasses.add(superClass.object.value); // Add the parent class to the inferred class collection
-    });
+    console.log("Updated store after adding new class and relationships:", store);
 
-    return Array.from(inferredClasses);
+    // 更新状态来触发画布的重新渲染
+    if (typeof setStore === 'function') {
+        setStore(store);
+    }
+    store.match(null, null, null).forEach(triple => {
+      console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+  });
 }
+
