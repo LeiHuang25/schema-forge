@@ -30,6 +30,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
             .attr('height', '100%')
             .attr('fill', 'lightgray');
 
+
         const zoom = d3.zoom()
             .scaleExtent([0.4, 3])
             .on('zoom', (event) => {
@@ -43,14 +44,84 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
             svg.remove();
         };
     }, []);
+   
 
     useEffect(() => {
+        console.log(store)
         if (selectedClass) {
+            console.log(store)
             const startX = 100;
             const startY = 100;
             const circleRadius = 50;
             const svg = d3.select(svgRef.current);
             const group = svg.select('g');
+
+            group.select('rect').on('click', function(event) {
+                console.log('add new class')
+                // 阻止事件冒泡，避免点击圆圈时也触发此事件
+                event.stopPropagation();
+                
+                // 询问用户是否要添加新圆圈
+                const addCircle = window.confirm('Do you want to add a new circle?');
+                if (addCircle) {
+                    const circle = window.prompt('Enter the name of the new circle:');
+                    const circleName = `https://schemaForge.net/pattern/${circle.trim().replace(/\s+/g, '-')}`;
+                    const lastSlashIndex = circleName.lastIndexOf('/');
+                    const label = lastSlashIndex !== -1 ? circleName.substring(lastSlashIndex + 1) : circleName;
+                    const exists = group.selectAll('.class-circle')
+                        .filter(function() { return d3.select(this).attr('nodeId') === circleName; })
+                        .size() > 0;
+                   
+                    if (!exists&&circleName) {
+                        // 获取点击位置
+                        const coords = d3.pointer(event);
+        
+                        // 在点击位置添加新圆圈
+                        group.append('circle')
+                            .attr('class', 'class-circle')
+                            .attr('nodeId', circleName)
+                            .attr('classId', circleName)
+                            .attr('cx', coords[0])
+                            .attr('cy', coords[1])
+                            .attr('r', 50)
+                            .style('fill', 'white')
+                            .style('stroke', 'black')
+                            .style('stroke-width', 2)
+                            .call(d3.drag().on('drag', dragged))
+                            .on('contextmenu', (event) => displayContextMenu(event, circleName))
+                            .on('click', function () {
+                                const isSelected = d3.select(this).classed('selected');
+                                // If already selected, uncheck the state, otherwise set to the selected state
+                                if (isSelected) {
+                                d3.select(this).classed('selected', false).style('stroke-width', 2);
+                                } else {
+                                // Uncheck all other circles
+                                svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
+                                // Set the current circle to the selected state
+                                d3.select(this).classed('selected', true).style('stroke-width', 4);
+                                const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
+                                setSelectedClassDetails(classDetails);
+                                }
+                            });
+                            group.append('text')
+                            .attr('class', 'node-label')
+                            .attr('nodeId', circleName)
+                            .attr('classId', circleName)
+                            .attr('x', coords[0])
+                            .attr('y', coords[1])
+                            .attr('text-anchor', 'middle')
+                            .attr('dominant-baseline', 'central')
+                            .style('fill', 'black')
+                            .call(d3.drag().on('drag', dragged))
+                            .text(label);
+                            const classNode = $rdf.namedNode(circleName);
+                            console.log(store)
+                            store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                            console.log(`Added new circle named '${circleName}' at position (${coords[0]}, ${coords[1]})`);
+                    }
+                }
+            });
+        
 
             const disk = group.append('circle')
                 .attr('class', 'class-circle')
@@ -94,19 +165,21 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
                 .call(d3.drag().on('drag', dragged))
                 .text(label);
 
-            function dragged(event) {
-                const newX = event.x;
-                const newY = event.y;
-
-                disk.attr('cx', newX)
-                    .attr('cy', newY);
-
-                d3.selectAll('text[classId="' + selectedClass + '"]')
-                    .attr('x', newX)
-                    .attr('y', newY);
-
-                updateMainClassRelatedLines(newX, newY,selectedClass);
-            }
+                function dragged(event) {
+                    const newX = event.x;
+                    const newY = event.y;
+                
+                    d3.select(this)
+                        .attr('cx', newX)
+                        .attr('cy', newY);
+                
+                    const svg = d3.select(svgRef.current);
+                    const nodeId = this.getAttribute('nodeId');
+                    svg.selectAll(`text[classId="${nodeId}"]`)
+                        .attr('x', newX)
+                        .attr('y', newY);
+                    updateMainClassRelatedLines(newX, newY, nodeId);
+                }
         }
     }, [selectedClass]);
     const getClassDetails = (selectedClass, store) => {
@@ -300,22 +373,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
         return lowestY;
     }
     
-    function dragged(event) {
-        const newX = event.x;
-        const newY = event.y;
-    
-        d3.select(this)
-            .attr('cx', newX)
-            .attr('cy', newY);
-    
-        const svg = d3.select(svgRef.current);
-        const nodeId = this.getAttribute('nodeId');
-        svg.selectAll(`text[classId="${nodeId}"]`)
-            .attr('x', newX)
-            .attr('y', newY);
-    
-        updateMainClassRelatedLines(newX, newY, nodeId);
-    }
+
     function updateRelationsForNewCircle(newCircle) {
         console.log(newCircle);
         const svg = d3.select(svgRef.current);
@@ -394,69 +452,6 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
 
     
     
-    
-
-    function updateMainClassRelatedLines(newX, newY, nodeId) {
-        d3.selectAll('.link-text').each(function() {
-            const text = d3.select(this);
-            const textNodeId = text.attr('nodeId');
-            const textStartId = text.attr('startId');
-            
-            d3.selectAll('.link').each(function() {
-                const line = d3.select(this);
-                const startId = line.attr('startId');
-                const endId = line.attr('nodeId');
-
-                if (startId === nodeId || endId === nodeId) {
-                    const circleRadius = 50;
-                    const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
-                    const circleX = +relatedCircle.attr('cx');
-                    const circleY = +relatedCircle.attr('cy');
-
-                    const Intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
-
-                    const updatedLinkPath = `M${newX + Intersection[0]},${newY + Intersection[1]} L${circleX - Intersection[0]},${circleY - Intersection[1]}`;
-                    line.attr('d', updatedLinkPath);
-
-                    if (endId === textNodeId && startId === textStartId) {
-                        const midX = (parseInt(newX) + parseInt(circleX)) / 2;
-                        const midY = (parseInt(newY) + parseInt(circleY)) / 2;
-                        line.attr('d', updatedLinkPath);
-                        text.attr('x', midX).attr('y', midY);
-                    }
-                }
-            });
-        });
-
-        const svg = d3.select(svgRef.current);
-        const group = svg.select('g');
-
-        // Get the positions of all circles
-        const circles = group.selectAll('circle').nodes();
-        circles.forEach(circle => {
-            const otherCircle = d3.select(circle);
-            const otherNodeId = otherCircle.attr('nodeId');
-            const otherCircleX = +otherCircle.attr('cx');
-            const otherCircleY = +otherCircle.attr('cy');
-
-            // Calculate the distance between the selected circle and the current circle
-            const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
-
-            // Hide connecting lines and text if the distance is too close
-            if (distance < 100 && otherNodeId !== nodeId) {
-                group.selectAll(`.link[startId="${otherNodeId}"][nodeId="${nodeId}"], .link[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
-                    .style('display', 'none');
-                group.selectAll(`.link-text[startId="${otherNodeId}"][nodeId="${nodeId}"], .link-text[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
-                    .style('display', 'none');
-            } else {
-                group.selectAll(`.link[startId="${otherNodeId}"][nodeId="${nodeId}"], .link[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
-                    .style('display', 'block');
-                group.selectAll(`.link-text[startId="${otherNodeId}"][nodeId="${nodeId}"], .link-text[startId="${nodeId}"][nodeId="${otherNodeId}"]`)
-                    .style('display', 'block');
-            }
-        });
-    }
-
     function calculateDecalage(x1, y1, x2, y2, r) {
         const dx = x2 - x1;
         const dy = y2 - y1;
@@ -468,6 +463,43 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
         const y = (r * sin);
         return [x, y];
     }
+    function updateMainClassRelatedLines(newX, newY, nodeId) {
+        console.log('erreur')
+        // Traverse all connecting lines
+        d3.selectAll('.link-text').each(function() {
+          const text = d3.select(this);
+          const textNodeId = text.attr('nodeId');
+          const textStartId = text.attr('startId');
+    
+        
+        d3.selectAll('.link').each(function() {
+            const line = d3.select(this);
+            const startId = line.attr('startId');
+            const endId = line.attr('nodeId');
+    
+            // Checks whether the start or end point of the connecting line matches the selected circle
+            if (startId === nodeId || endId === nodeId) {
+                // Get the path properties of the connection line
+                const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
+                const circleX = +relatedCircle.attr('cx');
+                const circleY = +relatedCircle.attr('cy');
+                const circleRadius = +relatedCircle.attr('r');
+                const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
+    
+                // Update the path of the connecting line
+                const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
+                line.attr('d', updatedLinkPath);
+    
+                // Update the position of the text on the connecting line
+                if (endId === textNodeId && startId === textStartId) {
+                  const midX = (newX + circleX) / 2;
+                  const midY = (newY + circleY) / 2;
+                  text.attr('x', midX).attr('y', midY);
+              }
+            }
+        });
+    })}
+  
 
 
     function displayContextMenu(event, classId) {
@@ -557,6 +589,13 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
                 removeSelectedClass(classId);
             } else if (action === 'addSubclass') {
                 addNewSubclass(classId);
+            }
+            else if (action === 'addRelation') {
+                console.log(classId)
+                addNewRelation(classId);
+            }
+            else if (action === 'addAttribute') {
+                addNewAttribute(classId);
             }
         } catch (error) {
             console.error('Error handling menu item click:', error);
@@ -898,7 +937,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
             }
     
             const seenValues = new Set();
-            seenValues.add(selectedClass)
+            seenValues.add(classId)
+            console.log(selectedClass,classId)
     
             const clickedNode = $rdf.namedNode(classId);
             console.log(clickedNode);
@@ -1020,11 +1060,46 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
         }
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
         // 根据用户输入创建新类的 URI
-        const newClassUri = `http://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+        const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
         rdfHelpers.createClass(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
         expandSubclasses(classId);
     }
+    function addNewRelation(classId) {
+        // Create a popup for subclass name input
+        const subclassInput = prompt("Enter the name of the new subclass:");
+        if (!subclassInput) {
+            console.log("Subclass input is empty.");
+            return; // Early return if input is empty
+        }
+        const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+        // 根据用户输入创建新类的 URI
+        const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+        const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+        rdfHelpers.createRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+        expandRelations(classId);
+    }
+    function addNewAttribute(classId) {
+        const attributeLabel = prompt("Enter the label of the new attribute:");
+        if (!attributeLabel) {
+            console.log("Attribute label input is empty.");
+            return; 
+        }
+        const attributeComment = prompt("Enter the comment for the new attribute:");
+        if (!attributeComment) {
+            console.log("Attribute comment input is empty.");
+            return;
+        }
+        const attributeRange = prompt("Enter the data type (range) for the new attribute (e.g., xsd:string):");
+        if (!attributeRange) {
+            console.log("Attribute range input is empty.");
+            return;
+        }
+        const newAttributeUri = `https://schemaForge.net/pattern/${attributeLabel.trim().replace(/\s+/g, '-')}`;
+        rdfHelpers.createDataProperty(store,newAttributeUri,attributeLabel,attributeComment,classId, `http://www.w3.org/2001/XMLSchema#${attributeRange.trim()}`);
+        console.log("New attribute added successfully.");
+    }
+    
     
     return (
         <div style={{ height: '100vh', overflowY: 'auto' }}>

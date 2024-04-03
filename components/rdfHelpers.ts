@@ -274,8 +274,69 @@ export function createClass(store, classLabel, relationUri,superClassUri = 'http
     if (typeof setStore === 'function') {
         setStore(store);
     }
+    //store.match(null, null, null).forEach(triple => {
+      //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+  //});
+}
+export function createRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
+    console.log("Creating new class:", classLabel,relationUri,superClassUri);
+    // 创建新类节点
+    const classNode = $rdf.namedNode(classLabel);
+    const relationNode = $rdf.namedNode(relationUri);
+    // 将新类标记为 RDF 类型的一个实例
+    store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+    const label = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
+    const lastSlashIndex = classLabel.lastIndexOf('/');
+  const propertyName = lastSlashIndex !== -1 ? classLabel.substring(lastSlashIndex + 1) : classLabel;
+    store.add(classNode, label, propertyName);
+
+    // 如果指定了超类，则创建 subClassOf 关系
+    if (superClassUri) {
+        const superClassNode = $rdf.namedNode(superClassUri);
+        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
+        const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
+        const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
+        store.add(relationNode, exampleProperty, classNode);
+        store.add(relationNode, examplePropert, superClassNode); // 将新类作为 domain
+
+    }
+
+    console.log("Updated store after adding new class and relationships:", store);
+
+    // 更新状态来触发画布的重新渲染
+    if (typeof setStore === 'function') {
+        setStore(store);
+    }
     store.match(null, null, null).forEach(triple => {
       console.log(triple.subject.value, triple.predicate.value, triple.object.value);
   });
 }
+export function createDataProperty(store, classUri, label, comment, domainUri, rangeUri) {
+  const classNode = $rdf.namedNode(classUri);
+  const typePred = $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const propertyType = $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#Property');
+  const labelPred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
+  const commentPred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#comment');
+  const domainPred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
+  const rangePred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
 
+  // 设置为 Property 类型
+  store.add(classNode, typePred, propertyType);
+  console.log(`${classUri} – ${typePred.uri} – "${propertyType.uri}"`);
+
+  // 添加 label
+  store.add(classNode, labelPred, $rdf.literal(label));
+  console.log(`${classUri} – ${labelPred.uri} – "${label}"`);
+
+  // 添加 comment
+  store.add(classNode, commentPred, $rdf.literal(comment));
+  console.log(`${classUri} – ${commentPred.uri} – "${comment}"`);
+
+  // 设置 domain
+  store.add(classNode, domainPred, $rdf.namedNode(domainUri));
+  console.log(`${classUri} – ${domainPred.uri} – "${domainUri}"`);
+
+  // 设置 range
+  store.add(classNode, rangePred, $rdf.namedNode(rangeUri));
+  console.log(`${classUri} – ${rangePred.uri} – "${rangeUri}"`);
+}

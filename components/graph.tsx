@@ -24,8 +24,7 @@ export const createDiskAndLink = (
   setStore:React.Dispatch<React.SetStateAction<any>>,
   setSelectedClassDetails: (classDetails: any) => void
 ): void => {
-  
-  
+
   if (svg.selectAll(`circle[nodeId="${nodeId}"]`).size() > 0){
     const sourceX = mainClassPosition.x;
     const sourceY = mainClassPosition.y;
@@ -72,6 +71,41 @@ export const createDiskAndLink = (
       .attr('y', midY);
       updateLink(sourceX, sourceY, targetX, targetY, link,text);
 
+
+      // Create arrow element
+  svg
+    .append('defs')
+    .append('marker')
+    .attr('id', 'arrowhead-outgoing') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
+    .attr('refY', 0)
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
+    .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
+    .append('path')
+    .attr('nodeId', nodeId)
+    .attr('d', 'M-10,-5L0,0L-10,5') // Arrow path, from end point to start point
+    .style('fill', 'blue'); // Set arrow color
+    
+
+  svg
+    .append('defs')
+    .append('marker')
+    .attr('id', 'arrowhead-incoming') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
+    .attr('refY', 0)
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
+    .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
+    .append('path')
+    .attr('nodeId', nodeId)
+    .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
+    .style('fill', 'red'); // Set arrow color
+
     // add the drag event to the circle and the text
     relatedDisk.call(d3.drag().on('drag', dragged));
     labelText.call(d3.drag().on('drag', dragged));
@@ -91,6 +125,7 @@ export const createDiskAndLink = (
 
     // define the drag event
     function dragged(event) {
+      console.log('erreur')
       const newX = event.x;
       const newY = event.y;
       const nodeId = d3.select(this).attr('nodeId');
@@ -164,42 +199,46 @@ export const createDiskAndLink = (
     });
     
       };
-
-  function updateMainClassRelatedLines(newX, newY, nodeId) {
-    // Traverse all connecting lines
-    d3.selectAll('.link-text').each(function() {
-      const text = d3.select(this);
-      const textNodeId = text.attr('nodeId');
-      const textStartId = text.attr('startId');
-
+      function updateMainClassRelatedLines(newX, newY, nodeId) {
+        d3.selectAll('.link').each(function() {
+            const line = d3.select(this);
+            const startId = line.attr('startId');
+            const endId = line.attr('nodeId');
     
-    d3.selectAll('.link').each(function() {
-        const line = d3.select(this);
-        const startId = line.attr('startId');
-        const endId = line.attr('nodeId');
-
-        // Checks whether the start or end point of the connecting line matches the selected circle
-        if (startId === nodeId || endId === nodeId) {
-            // Get the path properties of the connection line
-            const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
-            const circleX = +relatedCircle.attr('cx');
-            const circleY = +relatedCircle.attr('cy');
-            const circleRadius = +relatedCircle.attr('r');
-            const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
-
-            // Update the path of the connecting line
-            const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
-            line.attr('d', updatedLinkPath);
-
-            // Update the position of the text on the connecting line
-            if (endId === textNodeId && startId === textStartId) {
-              const midX = (newX + circleX) / 2;
-              const midY = (newY + circleY) / 2;
-              text.attr('x', midX).attr('y', midY);
-          }
-        }
-    });
-})}
+            let sourceX, sourceY, targetX, targetY;
+    
+            if (startId === nodeId) {
+                // 如果当前拖动的圆圈是连线的起点
+                const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
+                sourceX = newX;
+                sourceY = newY;
+                targetX = +otherCircle.attr('cx');
+                targetY = +otherCircle.attr('cy');
+            } else if (endId === nodeId) {
+                // 如果当前拖动的圆圈是连线的终点
+                const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
+                sourceX = +otherCircle.attr('cx');
+                sourceY = +otherCircle.attr('cy');
+                targetX = newX;
+                targetY = newY;
+            } else {
+                // 如果当前拖动的圆圈既不是起点也不是终点，则不更新该连线
+                return;
+            }
+    
+            // 更新连线位置
+            const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
+            line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`);
+    
+            // 更新连线文本的位置
+            const midX = (sourceX + targetX) / 2;
+            const midY = (sourceY + targetY) / 2;
+            d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
+              .attr('x', midX)
+              .attr('y', midY);
+        });
+    }
+    
       
   // Update the position of the connection line
   function updateLink(startX, startY, endX, endY, line,linkText) {
@@ -287,8 +326,7 @@ export const createDiskAndLink = (
       const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
       const InferredSubClass=rdfHelpers.getInferredSubclasses(store,classNode);
       const Inferredrelation=rdfHelpers.getInferredRelation(store,classNode);
-       console.log(rdfHelpers.getInferredDataProperties(store,classNode))
-     
+      
       const superlist = superclass.map(superclass => superclass.superClass);
       const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
      
@@ -557,40 +595,45 @@ if (direction === 'outgoing') {
   }
   
   function updateMainClassRelatedLines(newX, newY, nodeId) {
-    // Traverse all connecting lines
-    d3.selectAll('.link-text').each(function() {
-      const text = d3.select(this);
-      const textNodeId = text.attr('nodeId');
-      const textStartId = text.attr('startId');
-
-    
     d3.selectAll('.link').each(function() {
         const line = d3.select(this);
         const startId = line.attr('startId');
         const endId = line.attr('nodeId');
 
-        // Checks whether the start or end point of the connecting line matches the selected circle
-        if (startId === nodeId || endId === nodeId) {
-            // Get the path properties of the connection line
-            const relatedCircle = d3.select(`circle[nodeId="${startId === nodeId ? endId : startId}"]`);
-            const circleX = +relatedCircle.attr('cx');
-            const circleY = +relatedCircle.attr('cy');
-            const circleRadius = +relatedCircle.attr('r');
-            const intersection = calculateDecalage(newX, newY, circleX, circleY, circleRadius);
+        let sourceX, sourceY, targetX, targetY;
 
-            // Update the path of the connecting line
-            const updatedLinkPath = `M${newX + intersection[0]},${newY + intersection[1]} L${circleX - intersection[0]},${circleY - intersection[1]}`;
-            line.attr('d', updatedLinkPath);
-
-            // Update the position of the text on the connecting line
-            if (endId === textNodeId && startId === textStartId) {
-              const midX = (newX + circleX) / 2;
-              const midY = (newY + circleY) / 2;
-              text.attr('x', midX).attr('y', midY);
-          }
+        if (startId === nodeId) {
+            // 如果当前拖动的圆圈是连线的起点
+            const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
+            sourceX = newX;
+            sourceY = newY;
+            targetX = +otherCircle.attr('cx');
+            targetY = +otherCircle.attr('cy');
+        } else if (endId === nodeId) {
+            // 如果当前拖动的圆圈是连线的终点
+            const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
+            sourceX = +otherCircle.attr('cx');
+            sourceY = +otherCircle.attr('cy');
+            targetX = newX;
+            targetY = newY;
+        } else {
+            // 如果当前拖动的圆圈既不是起点也不是终点，则不更新该连线
+            return;
         }
+
+        // 更新连线位置
+        const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
+        line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`);
+
+        // 更新连线文本的位置
+        const midX = (sourceX + targetX) / 2;
+        const midY = (sourceY + targetY) / 2;
+        d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
+          .attr('x', midX)
+          .attr('y', midY);
     });
-})}
+}
+
   
 
 
@@ -708,8 +751,14 @@ if (direction === 'outgoing') {
         removeSelectedClass(nodeId); // Pass in nodeId
       }
       else if (action === 'addSubclass') {
-        addNewSubclass(classId);
+        addNewSubclass(nodeId);
     }
+    else if (action === 'addRelation') {
+      addNewRelation(nodeId);
+  }
+  else if (action === 'addAttribute') {
+    addNewAttribute(nodeId);
+}
     } catch (error) {
       console.error('Error handling menu item click:', error);
     }
@@ -1225,6 +1274,7 @@ function removeSelectedClass(nodeId: string) {
 
 }
 function addNewSubclass(classId) {
+  console.log(classId)
   // Create a popup for subclass name input
   const clickedNode = $rdf.namedNode(classId);
   const subclassInput = prompt("Enter the name of the new subclass:");
@@ -1234,11 +1284,47 @@ function addNewSubclass(classId) {
   }
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
   // 根据用户输入创建新类的 URI
-  const newClassUri = `http://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+  const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
   rdfHelpers.createClass(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
   expandSubclasses(svg,clickedNode,store);
 }
+function addNewRelation(classId) {
+  const clickedNode = $rdf.namedNode(classId);
+  // Create a popup for subclass name input
+  const subclassInput = prompt("Enter the name of the new subclass:");
+  if (!subclassInput) {
+      console.log("Subclass input is empty.");
+      return; // Early return if input is empty
+  }
+  const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  // 根据用户输入创建新类的 URI
+  const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+  const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+  rdfHelpers.createRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  expandRelations(svg,clickedNode,store);
+}
+function addNewAttribute(classId) {
+  const attributeLabel = prompt("Enter the label of the new attribute:");
+  if (!attributeLabel) {
+      console.log("Attribute label input is empty.");
+      return; 
+  }
+  const attributeComment = prompt("Enter the comment for the new attribute:");
+  if (!attributeComment) {
+      console.log("Attribute comment input is empty.");
+      return;
+  }
+  const attributeRange = prompt("Enter the data type (range) for the new attribute (e.g., xsd:string):");
+  if (!attributeRange) {
+      console.log("Attribute range input is empty.");
+      return;
+  }
+  const newAttributeUri = `https://schemaForge.net/pattern/${attributeLabel.trim().replace(/\s+/g, '-')}`;
+  rdfHelpers.createDataProperty(store,newAttributeUri,attributeLabel,attributeComment,classId, `http://www.w3.org/2001/XMLSchema#${attributeRange.trim()}`);
+  console.log("New attribute added successfully.");
+}
+
 
 };
 
