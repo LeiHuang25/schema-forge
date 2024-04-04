@@ -1,15 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { DragBehavior } from 'd3';
 import * as $rdf from 'rdflib';
 import { createDiskAndLink } from '@/components/graph';
 import * as rdfHelpers from '@/components/rdfHelpers';
 import { rdfs } from 'ldkit/namespaces';
 import { time } from 'console';
 
-const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
-    const svgRef = useRef(null);
+interface ClassDetails {
+    name: string;
+    superclass: any;
+    subclass: any;
+    attributes: string;
+    relations: { [key: string]: string | number };
+    DirectOutgoing: any;
+    DirectIncoming: any;
+    InferredOutgoing: ({ targetValue: any; target: any } | null)[];
+    InferredIncoming: ({ targetValue: any; target: any } | null)[];
+    InferredAttr: string;
+}
+
+const Diagram = ({ selectedClass, store, setTableData,setStore }:{
+    selectedClass: string | undefined,
+    store?: $rdf.IndexedFormula | null,
+    setTableData: React.Dispatch<React.SetStateAction<any>>,
+    setStore: React.Dispatch<React.SetStateAction<$rdf.IndexedFormula | null>>;
+}) => {
+    const svgRef = useRef<SVGSVGElement>(null);
+    const groupRef = useRef<SVGGElement>(null);
     const mainClassRef = useRef(null);
-    const [selectedClassDetails, setSelectedClassDetails] = useState(null);
+    const [selectedClassDetails, setSelectedClassDetails] = useState<ClassDetails | null>(null);
 
     useEffect(() => {
         const svg = d3.select(svgRef.current)
@@ -22,7 +42,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
             .attr('height', '100%')
             .attr('fill', 'lightgrey')
             .attr('pointer-events', 'all');
-        
+
             const group = svg.append('g').attr('class', 'disk-and-label');
 
         group.append('rect')
@@ -31,13 +51,14 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
             .attr('fill', 'lightgray');
 
 
-        const zoom = d3.zoom()
+        const zoom = d3.zoom<SVGSVGElement, unknown>()
             .scaleExtent([0.4, 3])
             .on('zoom', (event) => {
                 group.attr('transform', event.transform);
             });
 
-        svg.call(zoom);
+        svg.call(zoom as any);
+
 
         return () => {
             svg.selectAll('*').remove();
@@ -60,68 +81,82 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
                 console.log('add new class')
                 // 阻止事件冒泡，避免点击圆圈时也触发此事件
                 event.stopPropagation();
-                
+
                 // 询问用户是否要添加新圆圈
                 const addCircle = window.confirm('Do you want to add a new circle?');
                 if (addCircle) {
                     const circle = window.prompt('Enter the name of the new circle:');
-                    const circleName = `https://schemaForge.net/pattern/${circle.trim().replace(/\s+/g, '-')}`;
-                    const lastSlashIndex = circleName.lastIndexOf('/');
-                    const label = lastSlashIndex !== -1 ? circleName.substring(lastSlashIndex + 1) : circleName;
-                    const exists = group.selectAll('.class-circle')
-                        .filter(function() { return d3.select(this).attr('nodeId') === circleName; })
-                        .size() > 0;
-                   
-                    if (!exists&&circleName) {
-                        // 获取点击位置
-                        const coords = d3.pointer(event);
-        
-                        // 在点击位置添加新圆圈
-                        group.append('circle')
-                            .attr('class', 'class-circle')
-                            .attr('nodeId', circleName)
-                            .attr('classId', circleName)
-                            .attr('cx', coords[0])
-                            .attr('cy', coords[1])
-                            .attr('r', 50)
-                            .style('fill', 'white')
-                            .style('stroke', 'black')
-                            .style('stroke-width', 2)
-                            .call(d3.drag().on('drag', dragged))
-                            .on('contextmenu', (event) => displayContextMenu(event, circleName))
-                            .on('click', function () {
-                                const isSelected = d3.select(this).classed('selected');
-                                // If already selected, uncheck the state, otherwise set to the selected state
-                                if (isSelected) {
-                                d3.select(this).classed('selected', false).style('stroke-width', 2);
-                                } else {
-                                // Uncheck all other circles
-                                svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
-                                // Set the current circle to the selected state
-                                d3.select(this).classed('selected', true).style('stroke-width', 4);
-                                const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
-                                setSelectedClassDetails(classDetails);
-                                }
-                            });
+                    if (circle !== null){
+                        const circleName = `https://schemaForge.net/pattern/${circle.trim().replace(/\s+/g, '-')}`;
+                        const lastSlashIndex = circleName.lastIndexOf('/');
+                        const label = lastSlashIndex !== -1 ? circleName.substring(lastSlashIndex + 1) : circleName;
+                        const exists = group.selectAll('.class-circle')
+                            .filter(function() { return d3.select(this).attr('nodeId') === circleName; })
+                            .size() > 0;
+
+                        if (!exists&&circleName) {
+                            // 获取点击位置
+                            const coords = d3.pointer(event);
+
+                            const dragBehavior = d3.drag<SVGCircleElement, unknown>().on('drag', dragged);
+
+                            // 在点击位置添加新圆圈
+                            const newCircle = group.append('circle')
+                                .attr('class', 'class-circle')
+                                .attr('nodeId', circleName)
+                                .attr('classId', circleName)
+                                .attr('cx', coords[0])
+                                .attr('cy', coords[1])
+                                .attr('r', 50)
+                                .style('fill', 'white')
+                                .style('stroke', 'black')
+                                .style('stroke-width', 2)
+                                .call(dragBehavior)
+                                .on('contextmenu', (event) => displayContextMenu(event, circleName))
+                                .on('click', function () {
+                                    const isSelected = d3.select(this).classed('selected');
+                                    // If already selected, uncheck the state, otherwise set to the selected state
+                                    if (isSelected) {
+                                        d3.select(this).classed('selected', false).style('stroke-width', 2);
+                                    } else {
+                                        // Uncheck all other circles
+                                        svg.selectAll('circle').classed('selected', false).style('stroke-width', 2);
+                                        // Set the current circle to the selected state
+                                        d3.select(this).classed('selected', true).style('stroke-width', 4);
+                                        const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
+                                        if (classDetails !== null) {
+                                            setSelectedClassDetails(classDetails);
+                                        } else {
+                                            setSelectedClassDetails(null);
+                                        }
+                                    }
+                                });
                             group.append('text')
-                            .attr('class', 'node-label')
-                            .attr('nodeId', circleName)
-                            .attr('classId', circleName)
-                            .attr('x', coords[0])
-                            .attr('y', coords[1])
-                            .attr('text-anchor', 'middle')
-                            .attr('dominant-baseline', 'central')
-                            .style('fill', 'black')
-                            .call(d3.drag().on('drag', dragged))
-                            .text(label);
-                            const classNode = $rdf.namedNode(circleName);
-                            console.log(store)
-                            store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                                .attr('class', 'node-label')
+                                .attr('nodeId', circleName)
+                                .attr('classId', circleName)
+                                .attr('x', coords[0])
+                                .attr('y', coords[1])
+                                .attr('text-anchor', 'middle')
+                                .attr('dominant-baseline', 'central')
+                                .style('fill', 'black')
+                                .call(d3.drag<SVGTextElement, unknown>().on('drag', dragged))
+                                .text(label);
+
+                            if (store) {
+                                const classNode = $rdf.namedNode(circleName);
+                                console.log(store)
+                                store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                            }
+
                             console.log(`Added new circle named '${circleName}' at position (${coords[0]}, ${coords[1]})`);
+                        }
                     }
                 }
             });
-        
+
+            const dragBehavior: DragBehavior<SVGCircleElement, unknown, unknown> = d3.drag<SVGCircleElement, unknown>()
+                .on('drag', dragged);
 
             const disk = group.append('circle')
                 .attr('class', 'class-circle')
@@ -133,7 +168,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }) => {
                 .style('fill', 'white')
                 .style('stroke', 'black')
                 .style('stroke-width', 2)
-                .call(d3.drag().on('drag', dragged))
+                .call(dragBehavior)
                 .on('contextmenu', (event) => displayContextMenu(event, selectedClass))
                 .on('click', function () {
                     const isSelected = d3.select(this).classed('selected');

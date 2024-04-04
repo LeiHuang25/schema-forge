@@ -3,7 +3,7 @@ import * as $rdf from 'rdflib';
 import { getLabelFromURI } from '@/components/rdfHelpers';
 
 type DropdownComponentProps = {
-  store?: $rdf.IndexedFormula;
+  store?: $rdf.IndexedFormula | null;
   selectedClass: string | undefined;
   setSelectedClass: React.Dispatch<React.SetStateAction<string | undefined>>;
 };
