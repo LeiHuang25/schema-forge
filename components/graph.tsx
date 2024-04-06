@@ -271,7 +271,7 @@ export const createDiskAndLink = (
 
   relatedDisk
     .append('circle')
-    .attr('cx', diskX+20)
+    .attr('cx', diskX)
     .attr('cy', diskY)
     .attr('r', diskRadius)
     .style('fill', 'white')
@@ -405,6 +405,8 @@ export const createDiskAndLink = (
     .attr('x', diskX)
     .attr('y', diskY)
     .attr('nodeId', nodeId)
+    .attr('text-anchor', 'middle') // 水平居中
+    .attr('dominant-baseline', 'middle') // 垂直居中
     .text(label)
     .style('font-size', '14px');
 
@@ -1282,7 +1284,7 @@ function addNewSubclass(classId) {
       console.log("Subclass input is empty.");
       return; // Early return if input is empty
   }
-  const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  const relationInput = "subclassOf";
   // 根据用户输入创建新类的 URI
   const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;

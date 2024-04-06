@@ -1093,7 +1093,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             console.log("Subclass input is empty.");
             return; // Early return if input is empty
         }
-        const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+        const relationInput = "subClassOf";
         // 根据用户输入创建新类的 URI
         const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
@@ -1101,8 +1101,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         expandSubclasses(classId);
     }
     function addNewRelation(classId) {
-        // Create a popup for subclass name input
-        const subclassInput = prompt("Enter the name of the new subclass:");
+        // Create a popup for relation name input
+        const subclassInput = prompt("Enter the name of the new relation:");
         if (!subclassInput) {
             console.log("Subclass input is empty.");
             return; // Early return if input is empty
