@@ -70,18 +70,32 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
 
 
 
-  export function getSuperClasses(store, clickedNode) {
-    const superClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
-    const superClasses = store.match(
+  export function getSubClasses(store, clickedNode) {
+    const subClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
+    const subClasses = store.match(
       clickedNode,
-      superClassNode,
+      subClassNode,
       null
     );
 
-    return superClasses.map(stmt => ({
-      superClass: stmt.object.value,
+    return subClasses.map(stmt => ({
+      subClass: stmt.object.value,
       propertyUri: stmt.predicate.uri
     }));
+}
+
+export function getSuperClasses(store, clickedNode) {
+  const superClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
+  const superClasses = store.match(
+    null,
+    superClassNode,
+    clickedNode
+  );
+
+  return superClasses.map(stmt => ({
+    superClass: stmt.subject.value,
+    propertyUri: stmt.predicate.uri
+  }));
 }
 
 export function getIncomingConnectedClasses(store, clickedNode) {
@@ -216,15 +230,16 @@ export function getIncomingConnectedClasses(store, clickedNode) {
   const triples = store.match(null, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain'), node);
   triples.forEach(st => {
     const propertyRange = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range'), null);
+    const isXMLSchemaType = propertyRange.some(rangeStatement => rangeStatement.object.value.startsWith("http://www.w3.org/2001/XMLSchema"));
 
     const label = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'), null);
-    if(propertyRange.length>0 && propertyRange[0].object) {
+    if(propertyRange.length>0 && propertyRange[0].object&&isXMLSchemaType) {
       dataProperties[label[0]? label[0].object.value : st.subject.uri] = propertyRange[0].object.value.split("#").pop();
     }
   })
-  
   return dataProperties;
 };
+
 
 export function getInferredDataProperties(store, clickedNode) {
   const InferredSubClass = getInferredSubclasses(store, clickedNode);
@@ -245,27 +260,14 @@ export function getInferredDataProperties(store, clickedNode) {
   return combinedProperties;
 }
 
-export function createClass(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
-    console.log("Creating new class:", classLabel);
+export function createClass(store, classLabel,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
     // 创建新类节点
     const classNode = $rdf.namedNode(classLabel);
-    const relationNode = $rdf.namedNode(relationUri);
-    // 将新类标记为 RDF 类型的一个实例
-    store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
-    const label = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
-    const lastSlashIndex = classLabel.lastIndexOf('/');
-  const propertyName = lastSlashIndex !== -1 ? classLabel.substring(lastSlashIndex + 1) : classLabel;
-    store.add(classNode, label, propertyName);
-
     // 如果指定了超类，则创建 subClassOf 关系
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
-        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
-        const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
-        const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
-        store.add(relationNode, exampleProperty, superClassNode); // 将新类作为 domain
-        store.add(relationNode, examplePropert, classNode);
-
+        console.log(superClassNode)
+        store.add(superClassNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), classNode);
     }
 
     console.log("Updated store after adding new class and relationships:", store);
@@ -276,9 +278,9 @@ export function createClass(store, classLabel, relationUri,superClassUri = 'http
     }
     //store.match(null, null, null).forEach(triple => {
       //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
-  //});
+ // });
 }
-export function createRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
+export function createIncomingRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
     console.log("Creating new class:", classLabel,relationUri,superClassUri);
     // 创建新类节点
     const classNode = $rdf.namedNode(classLabel);
@@ -307,9 +309,41 @@ export function createRelation(store, classLabel, relationUri,superClassUri = 'h
     if (typeof setStore === 'function') {
         setStore(store);
     }
-    store.match(null, null, null).forEach(triple => {
-      console.log(triple.subject.value, triple.predicate.value, triple.object.value);
-  });
+    //store.match(null, null, null).forEach(triple => {
+      //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+  //});
+}
+export function createOutgoingRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
+    console.log("Creating new class:", classLabel,relationUri,superClassUri);
+    // 创建新类节点
+    const classNode = $rdf.namedNode(classLabel);
+    const relationNode = $rdf.namedNode(relationUri);
+    // 将新类标记为 RDF 类型的一个实例
+    store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+    const label = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
+    const lastSlashIndex = classLabel.lastIndexOf('/');
+  const propertyName = lastSlashIndex !== -1 ? classLabel.substring(lastSlashIndex + 1) : classLabel;
+    store.add(classNode, label, propertyName);
+
+    // 如果指定了超类，则创建 subClassOf 关系
+    if (superClassUri) {
+        const superClassNode = $rdf.namedNode(superClassUri);
+        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
+        const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
+        const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
+        store.add(relationNode, exampleProperty, superClassNode);
+        store.add(relationNode, examplePropert, classNode); // 将新类作为 domain
+
+    }
+    console.log("Updated store after adding new class and relationships:", store);
+
+    // 更新状态来触发画布的重新渲染
+    if (typeof setStore === 'function') {
+        setStore(store);
+    }
+    //store.match(null, null, null).forEach(triple => {
+      //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+  //});
 }
 export function createDataProperty(store, classUri, label, comment, domainUri, rangeUri) {
   const classNode = $rdf.namedNode(classUri);
@@ -340,3 +374,243 @@ export function createDataProperty(store, classUri, label, comment, domainUri, r
   store.add(classNode, rangePred, $rdf.namedNode(rangeUri));
   console.log(`${classUri} – ${rangePred.uri} – "${rangeUri}"`);
 }
+
+export function expandHavingSubs(nodeId,svg,store) {
+  const expandedNodes = {}; // store the already expanded node IDs
+  // get the connected classes information related to the current node
+  const SubClasses = getSubClasses(store, $rdf.namedNode(nodeId));
+
+  SubClasses.forEach(({ target }) => {
+      const connectedNodeId = target.value;
+      // if the node has already been expanded, skip it
+      if (expandedNodes[connectedNodeId]) {
+          return;
+      }
+      // expand the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the link text
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // mark the current node as expanded
+      expandedNodes[connectedNodeId] = true;
+      // get the child nodes related to the current node and expand them recursively
+      expandHavingSubs(connectedNodeId,svg,store);
+      expandHavingOutgoingRelations(connectedNodeId,svg,store);
+      expandHavingIncomingRelations(connectedNodeId,svg,store);
+  });
+}
+
+export function expandHavingOutgoingRelations(nodeId,svg,store) {
+  const expandedNodes = {}; // store the already expanded node IDs
+  // get the connected classes information related to the current node
+  const Outgoing = getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+
+  Outgoing.forEach(({ target }) => {
+      const connectedNodeId = target.value; 
+      // if the node has already been expanded, skip it
+      if (expandedNodes[connectedNodeId]) {
+          return;
+      }
+      // expand the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the link text
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // mark the current node as expanded
+      expandedNodes[connectedNodeId] = true;
+      // get the child nodes related to the current node and expand them recursively
+      expandHavingOutgoingRelations(connectedNodeId,svg,store);
+      expandHavingSubs(connectedNodeId,svg,store);
+      expandHavingIncomingRelations(connectedNodeId,svg,store);
+  });
+}
+
+export function expandHavingIncomingRelations(nodeId,svg,store) {
+  const expandedNodes = {}; // store the already expanded node IDs
+  // get the connected classes information related to the current node
+  const Incoming = getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
+
+  Incoming.forEach(({ target }) => {
+      const connectedNodeId = target.value; 
+      // if the node has already been expanded, skip it
+      if (expandedNodes[connectedNodeId]) {
+          return;
+      }
+      // expand the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the link text
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // mark the current node as expanded
+      expandedNodes[connectedNodeId] = true;
+      // get the child nodes related to the current node and expand them recursively
+      expandHavingIncomingRelations(connectedNodeId,svg,store);
+      expandHavingOutgoingRelations(connectedNodeId,svg,store);
+      expandHavingSubs(connectedNodeId,svg,store);
+  });
+}
+
+export function hideHavingSubs(nodeId,svg,store) {
+  const hiddenNodes = {}; // store the already hidden node IDs
+  // get the connected classes information related to the current node
+  const SubClasses = getSubClasses(store, $rdf.namedNode(nodeId));
+  console.log(SubClasses);
+
+  SubClasses.forEach(({ target }) => {
+      if (!target) {
+          return;
+      }
+
+      const connectedNodeId = target.value;
+      console.log(connectedNodeId);
+
+      // if the node has already been hidden, skip it
+      if (hiddenNodes[connectedNodeId]) {
+          return;
+      }
+
+      // hide the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the text on the link
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+
+      // mark the current node as hided
+      hiddenNodes[connectedNodeId] = true;
+
+      // get the child nodes related to the current node and hide them recursively
+      hideHavingSubs(connectedNodeId,svg,store);
+      hideHavingIncomingRelations(connectedNodeId,svg,store);
+      hideHavingOutgoingRelations(connectedNodeId,svg,store);
+  });
+}
+
+export function hideHavingIncomingRelations(nodeId,svg,store) {
+  const hiddenNodes = {}; // store the already hidden node IDs
+  // get the connected classes information related to the current node
+  const Incoming = getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
+  console.log(Incoming);
+
+  Incoming.forEach(({ target }) => {
+      if (!target) {
+          return;
+      }
+
+      const connectedNodeId = target.value;
+      console.log(connectedNodeId);
+
+      // if the node has already been hidden, skip it
+      if (hiddenNodes[connectedNodeId]) {
+          return;
+      }
+
+      // hide the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the text on the link
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+
+      // mark the current node as hided
+      hiddenNodes[connectedNodeId] = true;
+
+      // get the child nodes related to the current node and hide them recursively
+      hideHavingSubs(connectedNodeId,svg,store);
+      hideHavingIncomingRelations(connectedNodeId,svg,store);
+      hideHavingOutgoingRelations(connectedNodeId,svg,store);
+  });
+}
+
+export function hideHavingOutgoingRelations(nodeId,svg,store) {
+  const hiddenNodes = {}; // store the already hidden node IDs
+  // get the connected classes information related to the current node
+  const Outgoing = getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+  console.log(Outgoing);
+
+  Outgoing.forEach(({ target }) => {
+      if (!target) {
+          return;
+      }
+
+      const connectedNodeId = target.value;
+      console.log(connectedNodeId);
+
+      // if the node has already been hidden, skip it
+      if (hiddenNodes[connectedNodeId]) {
+          return;
+      }
+
+      // hide the link
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the text on the link
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      // hide the circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+
+      // mark the current node as hided
+      hiddenNodes[connectedNodeId] = true;
+
+      // get the child nodes related to the current node and hide them recursively
+      hideHavingSubs(connectedNodeId,svg,store);
+      hideHavingIncomingRelations(connectedNodeId,svg,store);
+      hideHavingOutgoingRelations(connectedNodeId,svg,store);
+  });
+}
+
+export const dataTypes = [
+  { label: 'dataTypes', value: 'http://www.w3.org/2001/XMLSchema#string' },
+  { label: 'String', value: 'http://www.w3.org/2001/XMLSchema#string' },
+  { label: 'Boolean', value: 'http://www.w3.org/2001/XMLSchema#boolean' },
+  { label: 'Float', value: 'http://www.w3.org/2001/XMLSchema#float' },
+  { label: 'Double', value: 'http://www.w3.org/2001/XMLSchema#double' },
+  { label: 'Decimal', value: 'http://www.w3.org/2001/XMLSchema#decimal' },
+  { label: 'DateTime', value: 'http://www.w3.org/2001/XMLSchema#dateTime' },
+  { label: 'Duration', value: 'http://www.w3.org/2001/XMLSchema#duration' },
+  { label: 'HexBinary', value: 'http://www.w3.org/2001/XMLSchema#hexBinary' },
+  { label: 'Base64Binary', value: 'http://www.w3.org/2001/XMLSchema#base64Binary' },
+  { label: 'AnyURI', value: 'http://www.w3.org/2001/XMLSchema#anyURI' },
+  { label: 'ID', value: 'http://www.w3.org/2001/XMLSchema#ID' },
+  { label: 'IDREF', value: 'http://www.w3.org/2001/XMLSchema#IDREF' },
+  { label: 'ENTITY', value: 'http://www.w3.org/2001/XMLSchema#ENTITY' },
+  { label: 'NOTATION', value: 'http://www.w3.org/2001/XMLSchema#NOTATION' },
+  { label: 'NormalizedString', value: 'http://www.w3.org/2001/XMLSchema#normalizedString' },
+  { label: 'Token', value: 'http://www.w3.org/2001/XMLSchema#token' },
+  { label: 'Language', value: 'http://www.w3.org/2001/XMLSchema#language' },
+  { label: 'IDREFS', value: 'http://www.w3.org/2001/XMLSchema#IDREFS' },
+  { label: 'ENTITIES', value: 'http://www.w3.org/2001/XMLSchema#ENTITIES' },
+  { label: 'NMTOKEN', value: 'http://www.w3.org/2001/XMLSchema#NMTOKEN' },
+  { label: 'NMTOKENS', value: 'http://www.w3.org/2001/XMLSchema#NMTOKENS' },
+  { label: 'Name', value: 'http://www.w3.org/2001/XMLSchema#Name' },
+  { label: 'QName', value: 'http://www.w3.org/2001/XMLSchema#QName' },
+  { label: 'NCName', value: 'http://www.w3.org/2001/XMLSchema#NCName' },
+  { label: 'Integer', value: 'http://www.w3.org/2001/XMLSchema#integer' },
+  { label: 'NonNegativeInteger', value: 'http://www.w3.org/2001/XMLSchema#nonNegativeInteger' },
+  { label: 'PositiveInteger', value: 'http://www.w3.org/2001/XMLSchema#positiveInteger' },
+  { label: 'NonPositiveInteger', value: 'http://www.w3.org/2001/XMLSchema#nonPositiveInteger' },
+  { label: 'NegativeInteger', value: 'http://www.w3.org/2001/XMLSchema#negativeInteger' },
+  { label: 'Byte', value: 'http://www.w3.org/2001/XMLSchema#byte' },
+  { label: 'Int', value: 'http://www.w3.org/2001/XMLSchema#int' },
+  { label: 'Long', value: 'http://www.w3.org/2001/XMLSchema#long' },
+  { label: 'Short', value: 'http://www.w3.org/2001/XMLSchema#short' },
+  { label: 'UnsignedByte', value: 'http://www.w3.org/2001/XMLSchema#unsignedByte' },
+  { label: 'UnsignedInt', value: 'http://www.w3.org/2001/XMLSchema#unsignedInt' },
+  { label: 'UnsignedLong', value: 'http://www.w3.org/2001/XMLSchema#unsignedLong' },
+  { label: 'UnsignedShort', value:'http://www.w3.org/2001/XMLSchema#unsignedShort' },
+  { label: 'Date', value: 'http://www.w3.org/2001/XMLSchema#date' },
+  { label: 'Time', value: 'http://www.w3.org/2001/XMLSchema#time' },
+  { label: 'GYearMonth', value: 'http://www.w3.org/2001/XMLSchema#gYearMonth' },
+  { label: 'GYear', value: 'http://www.w3.org/2001/XMLSchema#gYear' },
+  { label: 'GMonthDay', value: 'http://www.w3.org/2001/XMLSchema#gMonthDay' },
+  { label: 'GDay', value: 'http://www.w3.org/2001/XMLSchema#gDay' },
+  { label: 'GMonth', value: 'http://www.w3.org/2001/XMLSchema#gMonth' }
+];

@@ -18,9 +18,11 @@ const DropdownComponent: FC<DropdownComponentProps> = ({ store, selectedClass, s
   let relationLabels: { [uri: string]: string } = {};
 
   if (store) {
-    classes = store
-      .each(null, $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class"))
-      .map((classTerm) => classTerm as $rdf.NamedNode);
+    classes = [
+      ...store.each(null, $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class")),
+      ...store.each(null, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2002/07/owl#Class'))
+    ].map((classTerm) => classTerm as $rdf.NamedNode);
+
     classes.forEach((classNode) => {
       const labelTerm = store.any(classNode, $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#label"));
       if (labelTerm && labelTerm.value) {

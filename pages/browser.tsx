@@ -6,7 +6,7 @@ import DropdownComponent from '@/components/navigation';
 import Diagram from '@/components/diagram';
 import DataLoading from '@/components/dataLoading';
 import TableComponent from '@/components/tableComponent';
-import { getStaticPaths } from 'next';
+import Graph from '@/components/graph';
 
 const baseURI = process.env.NODE_ENV === 'production'
     ? 'https://your-production-domain.com/'   // replace with your production domain
@@ -15,7 +15,7 @@ const baseURI = process.env.NODE_ENV === 'production'
 function Browser() {
   const workspaceRef = useRef(null);
   const [selectedClass, setSelectedClass] = useState<any | undefined>();
-  const [store, setStore] = useState<$rdf.IndexedFormula | undefined>(undefined);
+  const [store, setStore] = useState<$rdf.IndexedFormula | null>(null);
   const [tableData, setTableData] = useState<{ [key: string]: string }>({});
 
   return (
@@ -45,7 +45,8 @@ function Browser() {
       <div className="separator"></div>
       <div className="central-pane w-4/5 h-full p-8">
         <div id="paper" className="w-full h-full overflow-hidden rounded-lg shadow">
-                  <Diagram selectedClass={selectedClass} store={store} setTableData={setTableData}/>
+                  <Diagram selectedClass={selectedClass} store={store} setTableData={setTableData} setStore={setStore}/>
+
         </div>
     </div>
     </div>

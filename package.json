@@ -11,14 +11,17 @@
   "dependencies": {
     "@clientio/rappid": "file:rappid.tgz",
     "@types/jointjs": "^2.0.0",
+    "bootstrap": "^5.3.3",
     "d3": "^7.8.5",
     "dagre": "latest",
     "graphlib": "latest",
     "jointjs": "^3.7.5",
+    "ldkit": "^2.0.0",
     "lodash": "^4.17.21",
     "next": "13.5.4",
     "rdflib": "^2.2.33",
     "react": "^18",
+    "react-bootstrap": "^2.10.2",
     "react-dom": "^18"
   },
   "devDependencies": {

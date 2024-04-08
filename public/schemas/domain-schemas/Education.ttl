@@ -4,6 +4,7 @@
 @prefix sf-house: <https://schemaForge.net/pattern/house/> .
 @prefix sf-student: <https://schemaForge.net/pattern/student/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 
 schema1:Assignment a rdfs:Class ;
     rdfs:label "Assignment" ;
@@ -22,6 +23,11 @@ schema1:College a rdfs:Class ;
 
 schema1:Course a rdfs:Class ;
     rdfs:label "Course" ;
+    rdfs:comment "A course in which students can enroll",
+        "A course offered by a department." .
+
+schema1:Course1 a owl:Class ;
+    rdfs:label "Course1" ;
     rdfs:comment "A course in which students can enroll",
         "A course offered by a department." .
 

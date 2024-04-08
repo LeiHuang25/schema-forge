@@ -6,7 +6,7 @@ import { has } from 'lodash';
 import { Lancelot } from 'next/font/google';
 
 // define the type of direction
-type Direction = 'incoming' | 'outgoing';
+type Direction = 'incoming' | 'outgoing' | 'subclass';
 
 
 // import the function to expand subclasses
@@ -22,7 +22,10 @@ export const createDiskAndLink = (
   classId:string,
   count:number,
   setStore:React.Dispatch<React.SetStateAction<any>>,
-  setSelectedClassDetails: (classDetails: any) => void
+  setSelectedClassDetails: (classDetails: any) => void,
+  setAttributeDetails: React.Dispatch<React.SetStateAction<any>>,
+  setShowDataTypeModal: React.Dispatch<React.SetStateAction<boolean>>,
+  setCurrentClassId:React.Dispatch<React.SetStateAction<any>>
 ): void => {
 
   if (svg.selectAll(`circle[nodeId="${nodeId}"]`).size() > 0){
@@ -40,7 +43,9 @@ export const createDiskAndLink = (
     if (direction === 'outgoing') {
         link = svg.append('path').attr('marker-end', 'url(#arrowhead-outgoing)');
     } else if (direction === 'incoming') {
-        link = svg.append('path').attr('marker-start', 'url(#arrowhead-incoming)').attr('marker-end', 'url(#arrowhead-outgoing)');
+        link = svg.append('path').attr('marker-start', 'url(#arrowhead-incoming)');
+    } else if (direction ==='subclass') {
+      link = svg.append('path').attr('marker-start', 'url(#arrowhead-subclass)');
     }
 
     // creat the link and set the position of the class as the end
@@ -88,7 +93,7 @@ export const createDiskAndLink = (
     .attr('nodeId', nodeId)
     .attr('d', 'M-10,-5L0,0L-10,5') // Arrow path, from end point to start point
     .style('fill', 'blue'); // Set arrow color
-    
+
 
   svg
     .append('defs')
@@ -105,6 +110,22 @@ export const createDiskAndLink = (
     .attr('nodeId', nodeId)
     .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
     .style('fill', 'red'); // Set arrow color
+
+  svg
+    .append('defs')
+    .append('marker')
+    .attr('id', 'arrowhead-subclass') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
+    .attr('refY', 0)
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
+    .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
+    .append('path')
+    .attr('nodeId', nodeId)
+    .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
+    .style('fill', 'yellow'); // Set arrow color
 
     // add the drag event to the circle and the text
     relatedDisk.call(d3.drag().on('drag', dragged));
@@ -125,7 +146,6 @@ export const createDiskAndLink = (
 
     // define the drag event
     function dragged(event) {
-      console.log('erreur')
       const newX = event.x;
       const newY = event.y;
       const nodeId = d3.select(this).attr('nodeId');
@@ -194,7 +214,7 @@ export const createDiskAndLink = (
         updateLink(circleX, circleY, newX, newY, selectedLine,linkText);
          // update the position of the circle
        relatedDisk.attr('cx', newX).attr('cy', newY);
-       labelText.attr('x', newX).attr('y', newY);
+       labelText.attr('x', newX).attr('y', newY).attr('text-anchor', 'middle').attr('dominant-baseline', 'middle');
   
     });
     
@@ -322,22 +342,23 @@ export const createDiskAndLink = (
       const lastIndex = nodeId.lastIndexOf('/');
       const name = lastIndex !== -1 ? nodeId.substring(lastIndex + 1) : nodeId;
       const superclass = rdfHelpers.getSuperClasses(store, classNode);
-      const subclass = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
-      const relation = rdfHelpers.getIncomingConnectedClasses(store, classNode);
+      const subclass = rdfHelpers.getSubClasses(store, classNode);
+      //outgoing , incoming relation
+      const Incoming = rdfHelpers.getIncomingConnectedClasses(store, classNode);
+      const Outgoing = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
+
+
       const InferredSubClass=rdfHelpers.getInferredSubclasses(store,classNode);
       const Inferredrelation=rdfHelpers.getInferredRelation(store,classNode);
       
-      const superlist = superclass.map(superclass => superclass.superClass);
-      const supername = superlist.map(item => item.substring(item.lastIndexOf('/') + 1));
      
-      const subname = subclass.map(item => {
-          if (item.target) {
-              return item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
-          } else {
-              return '';
-          }
-      });
-      const DirectOutgoing = subclass.map(item => {
+      const superlist = superclass.map(superclass => superclass.superClass);
+      const supername = superlist.length > 0 ? superlist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+
+      const sublist = subclass.map(subclass => subclass.subClass);
+      const subname = sublist.length > 0 ? sublist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+
+      const DirectOutgoing = Outgoing.map(item => {
           if (item.target) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -347,7 +368,7 @@ export const createDiskAndLink = (
               return null;
           }
       });
-      const DirectIncoming = relation.map(item => {
+      const DirectIncoming = Incoming.map(item => {
           if (item.target) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -373,11 +394,12 @@ export const createDiskAndLink = (
               return null;
           }
       }).filter(item => item !== null);
-      
+
+     
       
       // If the circle is selected, return relevant information
       if (isSelected) {
-          // Returns class details such as name, properties, relationships, etc.
+          // Return class details such as name, properties, relationships, etc.
           return {
               name: name,
               superclass: supername,
@@ -395,10 +417,14 @@ export const createDiskAndLink = (
       }
       
     };
-
+    
+    
   // Add text near circle
+  
   const label = rdfHelpers.getLabelFromURI(store, nodeId);
   console.log(label)
+  const lastSlash = nodeId.lastIndexOf('/');
+  const target = lastSlash !== -1 ? nodeId.substring(lastSlash + 1) : nodeId;
   const labelText = relatedDisk
     .append('text')
     .attr('class', 'node-label')
@@ -407,7 +433,7 @@ export const createDiskAndLink = (
     .attr('nodeId', nodeId)
     .attr('text-anchor', 'middle') // 水平居中
     .attr('dominant-baseline', 'middle') // 垂直居中
-    .text(label)
+    .text(target)
     .style('font-size', '14px');
 
   // Set the source and target points of the link
@@ -492,12 +518,30 @@ export const createDiskAndLink = (
     .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
     .style('fill', 'red'); // Set arrow color
 
+  svg
+    .append('defs')
+    .append('marker')
+    .attr('id', 'arrowhead-subclass') // Define the ID of the arrow
+    .attr('viewBox', '-20 -20 40 40') // Define the arrow's window
+    .attr('refX', 0) // The offset of the arrow relative to the end point
+    .attr('refY', 0)
+    .attr('orient', 'auto') // Arrow direction automatically adjusted
+    .attr('markerWidth', 30) // Arrow width
+    .attr('markerHeight', 30) // the height of the arrow
+    .attr('markerUnits', 'userSpaceOnUse') // Utiliser les coordonnées utilisateur pour refX et refY
+    .append('path')
+    .attr('nodeId', nodeId)
+    .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
+    .style('fill', 'yellow'); // Set arrow color
+
   // Set arrows based on direction
 
 if (direction === 'outgoing') {
   link.attr('marker-end', 'url(#arrowhead-outgoing)');
 } else if (direction === 'incoming') {
-  link.attr('marker-start', 'url(#arrowhead-incoming)').attr('marker-end', 'url(#arrowhead-outgoing)');
+  link.attr('marker-start', 'url(#arrowhead-incoming)');
+}else if (direction ==='subclass') {
+  link.attr('marker-start', 'url(#arrowhead-subclass)');
 }
   // Fonction pour calculer l'intersection entre la ligne de liaison et le cercle
   function calculateDecalage(x1, y1, x2, y2, r) {
@@ -543,7 +587,7 @@ if (direction === 'outgoing') {
     updateLink(circleX,circleY,Intersection);
 
     // Update the position of related text
-    labelText.attr('x', newX).attr('y', newY);
+    labelText.attr('x', newX).attr('y', newY).attr('text-anchor', 'middle').attr('dominant-baseline', 'middle');
     
     // Traverse all connecting lines and make the arrows transparent if the connection distance is too close
     svg.selectAll('.link').each(function(){
@@ -653,8 +697,10 @@ if (direction === 'outgoing') {
     const midX = (sourceX + targetX) / 2;
     const midY = (sourceY + targetY) / 2;
     text.attr('x', midX).attr('y', midY);
-    const markerEnd = 'url(#arrowhead-outgoing)';
-    link.attr('marker-end', markerEnd);
+    
+    /*
+    const markerEnd = 'url(#arrowhead-subclass)';
+    link.attr('marker-end', markerEnd); */
   }}
 
   // Right click event handler function
@@ -675,13 +721,16 @@ if (direction === 'outgoing') {
 
     // Define menu items
     const menuItems = [
-      { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
-      { action: 'expandRelations', content: 'Expand/Hide Relations' },
-      { action: 'removeClass', content: 'Remove Class' },
-      { action: 'addSubclass', content: 'Add New Subclass' },
-      { action: 'addRelation', content : 'Add New Relation'},
-      { action: 'addAttribute', content : 'Add New Attribute'}
-  ];
+            { action: 'expandSubclasses', content: 'Expand/Hide Subclasses' },
+            { action: 'expandIncomingRelations', content: 'Expand/Hide incoming Relations' },
+            { action: 'expandOutgoingRelations', content: 'Expand/Hide outgoing Relations' },
+            { action: 'removeClass', content: 'Remove Class' },
+            { action: 'addSubclass', content: 'Add New Subclass' },
+            { action: 'addIncomingRelation', content : 'Add New Incoming Relation'},
+            { action: 'addOutgoingRelation', content : 'Add New Outgoing Relation'},
+            { action: 'addAttribute', content : 'Add New Attribute'}
+        ];
+
 
     // Add menu item
     menuItems.forEach((item) => {
@@ -696,236 +745,293 @@ if (direction === 'outgoing') {
     document.body.appendChild(contextMenu);
 
     // Close the context menu when clicking outside of it
-    document.addEventListener('click', closeContextMenu);
-
-    function closeContextMenu(event) {
-      if (!contextMenu.contains(event.target)) {
-        contextMenu.remove();
-        document.removeEventListener('click', closeContextMenu);
-      }
-    }
+    setTimeout(() => {
+      document.addEventListener("click", function onClickOutside(event) {
+              contextMenu.remove();
+              document.removeEventListener("click", onClickOutside);
+          
+      });
+  }, 0);
   }
 
   // Menu item click handler function
   function handleMenuItemClick(action, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
-      console.log('Menu item clicked:', action);
+      console.log("Menu item clicked:", action);
       if (action === 'expandSubclasses') {
-        if (store) {
-          console.log(nodeId)
-          const SubExists = checkSubExists(nodeId,svg,store);
-          console.log(checkRelationHide(nodeId))
-                    if (SubExists) {
-                        if(checkSubHide(nodeId)){
-                            ExpandHavingSubs(nodeId)
-                        }
-                        else{
-                        console.log("sub already exists, hiding...");
-                        hideSubs(nodeId,newNode);}
-                    }
-
-          else{console.log('Expanding subclasses...');
-          expandSubclasses(svg, newNode, store);
-          console.log('Subclasses expanded successfully.');}
-        } else {
-          console.error('RDF store is not available.');
-        }
-      } else if (action === 'expandRelations') {
-        if (store) {
-          const relationExists = checkRelationExists(nodeId);
-          console.log(checkRelationHide(nodeId))
-          if (relationExists) {
-              if(checkRelationHide(nodeId)){
-                  ExpandHavingRelations(nodeId)
+          if (store) {
+              // check if sub exists
+              const SubExists = checkSubExists(nodeId);
+              console.log(SubExists);
+              if (SubExists) {
+                  if(checkSubHide(nodeId)){
+                      expandHavingSubs(nodeId);
+                  }
+                  else{
+                  console.log("sub already exists, hiding...");
+                  hideSubs(nodeId,newNode);}
               }
-              else{
-              console.log("Relation already exists, hiding...");
-              hideRelations(nodeId,newNode);}
+              else {
+                  console.log("Expanding subs...");
+                  expandSubclasses(svg,newNode,store);
+                  console.log("subs expanded successfully.");
+              }
+          } else {
+              console.error('RDF store is not available.');
           }
-          else {
-          console.log('Expanding relations...');
-          expandRelations(svg, newNode, store);
-          console.log('Relations expanded successfully.');}
+      } else if (action === 'expandIncomingRelations') {
+          if (store) {
+            const IncomingRelationExists = checkIncomingRelationExists(nodeId);
+            console.log(checkIncomingRelationHide(nodeId))
+            if (IncomingRelationExists){
+              if(checkIncomingRelationHide(nodeId)){
+                expandHavingIncomingRelations(nodeId)
+              }else{
+                console.log("Relation already exists, hiding...");
+                hideIncomingRelations(nodeId,newNode);
+              }
+            }else{
+              console.log("Expanding incoming relations...");
+              expandIncomingRelations(svg,newNode,store);
+              console.log("Incoming Relations expanded successfully.");
+            }
+          } else {
+              console.error('RDF store is not available.');
+          }
+      } else if (action === 'expandOutgoingRelations') {
+        if (store) {
+          const OutgoingRelationExists = checkOutgoingRelationExists(nodeId);
+          console.log(checkOutgoingRelationHide(nodeId))
+          if (OutgoingRelationExists){
+            if(checkOutgoingRelationHide(nodeId)){
+              expandHavingOutgoingRelations(nodeId)
+            }else{
+              console.log("Relation already exists, hiding...");
+              hideOutgoingRelations(nodeId,newNode);
+            }
+          }else{
+            console.log("Expanding incoming relations...");
+            expandOutgoingRelations(svg,newNode,store);
+            console.log("Outgoing Relations expanded successfully.");
+          }
         } else {
-          console.error('RDF store is not available.');
+            console.error('RDF store is not available.');
         }
       } else if (action === 'removeClass') {
-        removeSelectedClass(nodeId); // Pass in nodeId
+          removeSelectedClass(nodeId);
+      } else if (action === 'addSubclass') {
+          addNewSubclass(nodeId);
       }
-      else if (action === 'addSubclass') {
-        addNewSubclass(nodeId);
-    }
-    else if (action === 'addRelation') {
-      addNewRelation(nodeId);
-  }
-  else if (action === 'addAttribute') {
-    addNewAttribute(nodeId);
-}
-    } catch (error) {
+      else if (action === 'addIncomingRelation') {
+          addNewIncomingRelation(nodeId);
+      }
+      else if (action === 'addOutgoingRelation') {
+          addNewOutgoingRelation(nodeId);
+      }
+      else if (action === 'addAttribute') {
+          addNewAttribute(nodeId);
+      }
+  } catch (error) {
       console.error('Error handling menu item click:', error);
-    }
   }
-  function checkSubExists(classId) {
-    const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
-    let count = 0;
-
-    OutgoingConnectedClasses.forEach(({ target }) => {
-        const x = target.value;
-        const textlink = svg.selectAll(`.link-text[nodeId="${x}"][startId="${classId}"]`);
-        if (!textlink.empty()) {
-            count++;
-        }
-    });
-
-    return count === OutgoingConnectedClasses.length;
 }
+function checkSubExists(classId) {
+  const clickedNode = $rdf.namedNode(classId);
+  const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
+  let subExists = false;
+
+  SubClasses.forEach(({ subClass }) => {
+      const nodeId = subClass;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
+      if (!textlink.empty()) {
+          subExists = true;
+          return; // Terminate the loop
+      }
+  });
+  return subExists;
+}
+
 
 function checkSubHide(classId) {
-    const clickedNode = $rdf.namedNode(classId);
-    const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-    let count = 0;
+  const clickedNode = $rdf.namedNode(classId);
+  const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
+  let subHide = false;
 
-    outgoingConnectedClasses.forEach(({ target }) => {
-        const x = target.value;
-        const textlink = svg.selectAll(`.link-text[nodeId="${x}"][startId="${classId}"]`);
+  SubClasses.forEach(({ subClass }) => {
+      const nodeId = subClass;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
 
-        textlink.each(function() {
-            const text = d3.select(this);
-            if (text.style('display') === 'none') {
-              count++;
-            }
-        });
-    });
-
-    return count === outgoingConnectedClasses.length;
-}
-
-function hideSubs(classId, newNode) {
-    const hiddenNodes = {}; // Used to store hidden node IDs
-    hideRelatedSubs(classId);
-
-    function hideRelatedSubs(classId) {
-        // Get the connection line information related to the current node
-        const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
-        connectedClasses.forEach(({ target }) => {
-            if (!target) {
-                return;
-            }
-            if (!isLineMatch(target.value, classId)){
-              return;
-            }
-            const x = target.value;
-            if (x!= newNode.value){
-            // If the node is already hidden, skip
-            if (hiddenNodes[x]) {
-                return;
-            }
-            const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-            // Hide connecting lines and related elements
-            if (!hasOtherConnections && x !== newNode.value) {
-                hideElement(x);
-            }
-            if (hasOtherConnections && x !== newNode.value) {
-              svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
-              svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
-              }
-            // Mark current node as hidden
-            hiddenNodes[x] = true;
-            // Get the child nodes related to the current node and hide them recursively
-            hideRelatedSubs(x);
-            hideRelatedElements(x,newNode);
-        }});
-    }
-
-    function hideRelatedElements(classId, newNode) {
-        const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
-        connectedClasses.forEach(({ target }) => {
-            if (!target) {
-                return;
-            }
-            if (!isLineMatch(target.value, classId)){
-              return;
-            }
-            const x = target.value;
-            if (x!=newNode.value){
-            // If the node is already hidden, skip
-            if (hiddenNodes[x]) {
-                return;
-            }
-            // Determine whether there are other connections besides the specified node
-            const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
-            // Hide connecting lines and related elements
-            if (!hasOtherConnections && x !== newNode.value) {
-                hideElement(x);
-            }
-            if (hasOtherConnections && x !== newNode.value) {
-              console.log(hasOtherConnections)
-              svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
-              svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
-              }
-            // Mark current node as hidden
-            hiddenNodes[x] = true;
-            // Get the child nodes related to the current node and hide them recursively
-            hideRelatedElements(x, newNode);
-        }});
-    }
-
-    function hasOtherConnectionsExcept(nodeId, newNode) {
-        // Get all line elements
-        const lines = svg.selectAll('.link').filter(function() {
-            return d3.select(this).style('display') !== 'none';
-        });
-
-        let otherConnectionsExist = false;
-
-        // Traverse all line elements
-        lines.each(function() {
-            const line = d3.select(this);
-            const lineNodeId = line.attr('nodeId');
-            const lineStartId = line.attr('startId');
-
-            // Determine whether the starting node or ending node of the line is the given nodeId
-            if ((lineNodeId === nodeId || lineStartId === nodeId) && 
-                lineNodeId !== newNode.value && lineStartId !== newNode.value) {
-                otherConnectionsExist = true;
-            }
-        });
-
-        return otherConnectionsExist;
-    }
-    function isLineMatch(nodeId, startId) {
-      const lines = svg.selectAll('.link');
-      for (let i = 0; i < lines.size(); i++) {
-          const line = lines.nodes()[i];
-          const lineNodeId = line.getAttribute('nodeId');
-          const lineStartId = line.getAttribute('startId');
-          if (lineNodeId === nodeId && lineStartId === startId) {
-              return true; // Matching straight line found
+      textlink.each(function() {
+          const text = d3.select(this);
+          if (text.style('display') === 'none') {
+              subHide = true;
+              return false; // terminate the loop
           }
-      }
-      return false; // No matching line found
+      });
+  });
+
+  return subHide;
+}
+function hideSubs(classId, newNode) {
+  const hiddenNodes = {}; // Used to store hidden node IDs
+  hideRelatedSubs(classId);
+
+  function hideRelatedSubs(classId) {
+      // Get the connection line information related to the current node
+      const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
+      SubClasses.forEach(({ target }) => {
+          if (!target) {
+              return;
+          }
+          if (!isLineMatch(target.value, classId)){
+            return;
+          }
+          const x = target.value;
+          if (x!= newNode.value){
+          // If the node is already hidden, skip
+          if (hiddenNodes[x]) {
+              return;
+          }
+          const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+          // Hide connecting lines and related elements
+          if (!hasOtherConnections && x !== newNode.value) {
+              hideElement(x);
+          }
+          if (hasOtherConnections && x !== newNode.value) {
+            svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+            }
+          // Mark current node as hidden
+          hiddenNodes[x] = true;
+          // Get the child nodes related to the current node and hide them recursively
+          hideRelatedSubs(x);
+          hideRelatedIncoming(x,newNode);
+          hideRelatedOutgoing(x, newNode);
+      }});
   }
 
-    function hideElement(nodeId) {
-        // Hide connecting lines
-        svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
-        // Hide text on connecting lines
-        svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
-        // Hide circle
-        svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
-        svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
-    }
+  function hideRelatedIncoming(classId, newNode) {
+      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
+      IncomingClasses.forEach(({ target }) => {
+          if (!target) {
+              return;
+          }
+          if (!isLineMatch(target.value, classId)){
+            return;
+          }
+          const x = target.value;
+          if (x!=newNode.value){
+          // If the node is already hidden, skip
+          if (hiddenNodes[x]) {
+              return;
+          }
+          // Determine whether there are other connections besides the specified node
+          const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+          // Hide connecting lines and related elements
+          if (!hasOtherConnections && x !== newNode.value) {
+              hideElement(x);
+          }
+          if (hasOtherConnections && x !== newNode.value) {
+            console.log(hasOtherConnections)
+            svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+            }
+          // Mark current node as hidden
+          hiddenNodes[x] = true;
+          // Get the child nodes related to the current node and hide them recursively
+          hideRelatedIncoming(x, newNode);
+      }});
+  }
+
+  function hideRelatedOutgoing(classId, newNode) {
+    const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
+    OutgoingClasses.forEach(({ target }) => {
+        if (!target) {
+            return;
+        }
+        if (!isLineMatch(target.value, classId)){
+          return;
+        }
+        const x = target.value;
+        if (x!=newNode.value){
+        // If the node is already hidden, skip
+        if (hiddenNodes[x]) {
+            return;
+        }
+        // Determine whether there are other connections besides the specified node
+        const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+        // Hide connecting lines and related elements
+        if (!hasOtherConnections && x !== newNode.value) {
+            hideElement(x);
+        }
+        if (hasOtherConnections && x !== newNode.value) {
+          console.log(hasOtherConnections)
+          svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+          svg.selectAll(`.link-text[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
+          }
+        // Mark current node as hidden
+        hiddenNodes[x] = true;
+        // Get the child nodes related to the current node and hide them recursively
+        hideRelatedOutgoing(x, newNode);
+    }});
 }
 
-function ExpandHavingSubs(classId) {
+  function hasOtherConnectionsExcept(nodeId, newNode) {
+      // Get all line elements
+      const lines = svg.selectAll('.link').filter(function() {
+          return d3.select(this).style('display') !== 'none';
+      });
+
+      let otherConnectionsExist = false;
+
+      // Traverse all line elements
+      lines.each(function() {
+          const line = d3.select(this);
+          const lineNodeId = line.attr('nodeId');
+          const lineStartId = line.attr('startId');
+
+          // Determine whether the starting node or ending node of the line is the given nodeId
+          if ((lineNodeId === nodeId || lineStartId === nodeId) && 
+              lineNodeId !== newNode.value && lineStartId !== newNode.value) {
+              otherConnectionsExist = true;
+          }
+      });
+
+      return otherConnectionsExist;
+  }
+  function isLineMatch(nodeId, startId) {
+    const lines = svg.selectAll('.link');
+    for (let i = 0; i < lines.size(); i++) {
+        const line = lines.nodes()[i];
+        const lineNodeId = line.getAttribute('nodeId');
+        const lineStartId = line.getAttribute('startId');
+        if (lineNodeId === nodeId && lineStartId === startId) {
+            return true; // Matching straight line found
+        }
+    }
+    return false; // No matching line found
+}
+
+  function hideElement(nodeId) {
+      // Hide connecting lines
+      svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+      // Hide text on connecting lines
+      svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+      // Hide circle
+      svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
+      svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
+  }
+}
+
+function expandHavingSubs(classId) {
   const expandedNodes = {}; // Used to store expanded node IDs
   expandRelatedSubs(classId);
   
   function expandRelatedSubs(nodeId) {
       // Get the connection line information related to the current node
-      const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+      const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
       
-      connectedClasses.forEach(({ target }) => {
+      SubClasses.forEach(({ target }) => {
         if (!target) {
           return;
       }
@@ -945,15 +1051,16 @@ function ExpandHavingSubs(classId) {
           expandedNodes[connectedNodeId] = true;
           // Get the child nodes related to the current node and expand them recursively
           expandRelatedSubs(connectedNodeId);
-          expandRelatedElements(connectedNodeId);
+          expandRelatedOutgoing(connectedNodeId);
+          expandRelatedIncoming(connectedNodeId);
       });
   }
   
-  function expandRelatedElements(nodeId) {
+  function expandRelatedOutgoing(nodeId) {
       // Get the connection line information related to the current node
-      const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
+      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
       
-      connectedClasses.forEach(({ target }) => {
+      OutgoingClasses.forEach(({ target }) => {
         if (!target) {
           return;
       }
@@ -972,56 +1079,162 @@ function ExpandHavingSubs(classId) {
           // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
           // Get the child nodes related to the current node and expand them recursively
-          expandRelatedElements(connectedNodeId);
+          expandRelatedOutgoing(connectedNodeId);
       });
   }
-}
-
-
-
-function checkRelationExists(classId) {
-    const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
-    let count = 0;
-
-    incomingConnectedClasses.forEach(({ target }) => {
-        const x = target.value;
-        const textlink = svg.selectAll(`.link-text[nodeId="${x}"][startId="${classId}"]`);
-        if (!textlink.empty()) {
-            count++;
+  function expandRelatedIncoming(nodeId) {
+    // Get the connection line information related to the current node
+    const IncomingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+    
+    IncomingClasses.forEach(({ target }) => {
+      if (!target) {
+        return;
+    }
+        const connectedNodeId = target.value; 
+        // If the node is already expanded, skip
+        if (expandedNodes[connectedNodeId]) {
+            return;
         }
+        // Expand connecting lines
+        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        // Expand the text on the connecting line
+        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        // expand circle
+        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        // Mark current node as expanded
+        expandedNodes[connectedNodeId] = true;
+        // Get the child nodes related to the current node and expand them recursively
+        expandRelatedIncoming(connectedNodeId);
     });
-
-    return count === incomingConnectedClasses.length;
 }
-function checkRelationHide(classId) {
+}
+
+function checkIncomingRelationExists(classId) {
   const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
-  let allHidden = true;
-  console.log(incomingConnectedClasses)
+  let relationExists = false;
 
   incomingConnectedClasses.forEach(({ target }) => {
-      const x = target.value;
-      const textlink = svg.selectAll(`.link[nodeId="${x}"][startId="${classId}"]`);
+      const nodeId = target.value;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
+      if (!textlink.empty()) {
+          relationExists = true;
+          return; // Terminate the loop
+      }
+  });
+
+  return relationExists;
+}
+function checkIncomingRelationHide(classId) {
+  const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
+  let relationHide = false;
+
+  incomingConnectedClasses.forEach(({ target }) => {
+      const nodeId = target.value;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
       textlink.each(function() {
           const text = d3.select(this);
-          if (text.style('display') !== 'none') {
-              allHidden = false;
-              return; // Terminate the loop if any relation is not hidden
+          if (text.style('display') === 'none') {
+              relationHide = true;
+              return false; // terminate the loop
           }
       });
   });
 
-  return allHidden;
+  return relationHide;
 }
 
-
-function hideRelations(classId, newNode) {
-  const hiddenNodes = {}; // Used to store hidden node IDs
-  hideRelatedElements(classId);
-
-  function hideRelatedElements(classId) {
+function expandHavingIncomingRelations(classId) {
+  const expandedNodes = {}; // Used to store expanded node IDs
+  expandRelatedIncoming(classId);
+  function expandRelatedIncoming(nodeId) {
       // Get the connection line information related to the current node
-      const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
-      connectedClasses.forEach(({ target }) => {
+      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
+      IncomingClasses.forEach(({ target }) => {
+        if (!target) {
+          return;
+      }
+          const connectedNodeId = target.value;
+          // If the node is already expanded, skip
+          if (expandedNodes[connectedNodeId]) {
+              return;
+          }
+          // Expand connecting lines
+          svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+          // Expand the text on the connecting line
+          svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+          // expand circle
+          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+              // Mark current node as expanded
+          expandedNodes[connectedNodeId] = true;
+          // Get the child nodes related to the current node and expand them recursively
+          expandRelatedIncoming(connectedNodeId);
+          expandRelatedOutgoing(connectedNodeId);
+          expandRelatedSubs(connectedNodeId);
+      });
+  }
+  function expandRelatedOutgoing(nodeId) {
+    // Get the connection line information related to the current node
+    const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+    OutgoingClasses.forEach(({ target }) => {
+      if (!target) {
+        return;
+      }
+      const connectedNodeId = target.value;
+      // If the node is already expanded, skip
+      if (expandedNodes[connectedNodeId]) {
+          return;
+      }
+      // Expand connecting lines
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // Expand the text on the connecting line
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+          // Mark current node as expanded
+      expandedNodes[connectedNodeId] = true;
+      // Get the child nodes related to the current node and expand them recursively
+      expandRelatedOutgoing(connectedNodeId);
+    });
+  }
+
+  function expandRelatedSubs(nodeId) {
+    // Get the connection line information related to the current node
+    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
+    SubClasses.forEach(({ target }) => {
+      if (!target) {
+        return;
+    }
+        const connectedNodeId = target.value;
+        // If the node is already expanded, skip
+        if (expandedNodes[connectedNodeId]) {
+            return;
+        }
+        // Expand connecting lines
+        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        // Expand the text on the connecting line
+        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        // expand circle
+        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+            // Mark current node as expanded
+        expandedNodes[connectedNodeId] = true;
+        // Get the child nodes related to the current node and expand them recursively
+        expandRelatedSubs(connectedNodeId);
+    });
+  }
+}
+
+function hideIncomingRelations(classId, newNode) {
+  const hiddenNodes = {}; // Used to store hidden node IDs
+  hideRelatedIncoming(classId);
+
+  function hideRelatedIncoming(classId) {
+      // Get the connection line information related to the current node
+      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
+      IncomingClasses.forEach(({ target }) => {
           if (!target) {
               return;
           }
@@ -1045,15 +1258,16 @@ function hideRelations(classId, newNode) {
                 }
               hiddenNodes[x] = true;
               // Get the child nodes related to the current node and hide them recursively
-              hideRelatedElements(x);
+              hideRelatedIncoming(x);
+              hideRelatedOutgoing(x, newNode);
               hideRelatedSubs(x, newNode);
           }
       });
   }
 
-  function hideRelatedSubs(classId, newNode) {
-      const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
-      connectedClasses.forEach(({ target }) => {
+  function hideRelatedOutgoing(classId, newNode) {
+      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
+      OutgoingClasses.forEach(({ target }) => {
           if (!target) {
               return;
           }
@@ -1078,10 +1292,42 @@ function hideRelations(classId, newNode) {
               }
               hiddenNodes[x] = true;
               // Get the child nodes related to the current node and hide them recursively
-              hideRelatedSubs(x, newNode);
+              hideRelatedOutgoing(x, newNode);
           }
       });
   }
+  function hideRelatedSubs(classId, newNode) {
+    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
+    SubClasses.forEach(({ target }) => {
+        if (!target) {
+            return;
+        }
+        if (!isLineMatch(target.value, classId)){
+          return;
+        }
+        const x = target.value;
+        if (x !== newNode.value) {
+            // If the node is already hidden, skip
+            if (hiddenNodes[x]) {
+                return;
+            }
+            const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+            // Hide connecting lines and related elements
+            if (!hasOtherConnections && x !== newNode.value) {
+              console.log(x)
+                hideElement(x);
+            }
+            if (hasOtherConnections && x !== newNode.value) {
+            svg.selectAll(`.link[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+            }
+            hiddenNodes[x] = true;
+            // Get the child nodes related to the current node and hide them recursively
+            hideRelatedSubs(x, newNode);
+        }
+    });
+}
+
   function isLineMatch(nodeId, startId) {
     const lines = svg.selectAll('.link');
     for (let i = 0; i < lines.size(); i++) {
@@ -1130,15 +1376,47 @@ function hideRelations(classId, newNode) {
   }
 }
 
+function checkOutgoingRelationExists(classId) {
+  const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
+  let relationExists = false;
 
+  OutgoingConnectedClasses.forEach(({ target }) => {
+      const nodeId = target.value;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
+      if (!textlink.empty()) {
+          relationExists = true;
+          return; // Terminate the loop
+      }
+  });
 
-function ExpandHavingRelations(classId) {
+  return relationExists;
+}
+function checkOutgoingRelationHide(classId) {
+  const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
+  let relationHide = false;
+
+  OutgoingConnectedClasses.forEach(({ target }) => {
+      const nodeId = target.value;
+      const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
+      textlink.each(function() {
+          const text = d3.select(this);
+          if (text.style('display') === 'none') {
+              relationHide = true;
+              return false; // terminate the loop
+          }
+      });
+  });
+
+  return relationHide;
+}
+
+function expandHavingOutgoingRelations(classId) {
   const expandedNodes = {}; // Used to store expanded node IDs
-  expandRelatedElements(classId);
-  function expandRelatedElements(nodeId) {
+  expandRelatedOutgoing(classId);
+  function expandRelatedOutgoing(nodeId) {
       // Get the connection line information related to the current node
-      const connectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-      connectedClasses.forEach(({ target }) => {
+      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
+      OutgoingClasses.forEach(({ target }) => {
         if (!target) {
           return;
       }
@@ -1157,14 +1435,41 @@ function ExpandHavingRelations(classId) {
               // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
           // Get the child nodes related to the current node and expand them recursively
-          expandRelatedElements(connectedNodeId);
+          expandRelatedOutgoing(connectedNodeId);
+          expandRelatedIncoming(connectedNodeId);
           expandRelatedSubs(connectedNodeId);
       });
   }
+  function expandRelatedIncoming(nodeId) {
+    // Get the connection line information related to the current node
+    const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
+    IncomingClasses.forEach(({ target }) => {
+      if (!target) {
+        return;
+      }
+      const connectedNodeId = target.value;
+      // If the node is already expanded, skip
+      if (expandedNodes[connectedNodeId]) {
+          return;
+      }
+      // Expand connecting lines
+      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // Expand the text on the connecting line
+      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      // expand circle
+      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
+      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+          // Mark current node as expanded
+      expandedNodes[connectedNodeId] = true;
+      // Get the child nodes related to the current node and expand them recursively
+      expandRelatedIncoming(connectedNodeId);
+    });
+  }
+
   function expandRelatedSubs(nodeId) {
     // Get the connection line information related to the current node
-    const connectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-    connectedClasses.forEach(({ target }) => {
+    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
+    SubClasses.forEach(({ target }) => {
       if (!target) {
         return;
     }
@@ -1183,13 +1488,162 @@ function ExpandHavingRelations(classId) {
             // Mark current node as expanded
         expandedNodes[connectedNodeId] = true;
         // Get the child nodes related to the current node and expand them recursively
-        expandRelatedElements(connectedNodeId);
+        expandRelatedSubs(connectedNodeId);
+    });
+  }
+}
+
+function hideOutgoingRelations(classId, newNode) {
+  const hiddenNodes = {}; // Used to store hidden node IDs
+  hideRelatedOutgoing(classId);
+
+  function hideRelatedOutgoing(classId) {
+      // Get the connection line information related to the current node
+      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
+      OutgoingClasses.forEach(({ target }) => {
+          if (!target) {
+              return;
+          }
+          if (!isLineMatch(target.value, classId)){
+            return;
+          }
+          const x = target.value;
+          if (x !== newNode.value) {
+              // If the node is already hidden, skip
+              if (hiddenNodes[x]) {
+                  return;
+              }
+              const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+              // Hide connecting lines and related elements
+              if (!hasOtherConnections && x !== newNode.value) {
+                  hideElement(x);
+              }
+              if (hasOtherConnections && x !== newNode.value) {
+                svg.selectAll(`.link[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+                svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+                }
+              hiddenNodes[x] = true;
+              // Get the child nodes related to the current node and hide them recursively
+              hideRelatedOutgoing(x);
+              hideRelatedIncoming(x, newNode);
+              hideRelatedSubs(x, newNode);
+          }
+      });
+  }
+
+  function hideRelatedIncoming(classId, newNode) {
+      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
+      IncomingClasses.forEach(({ target }) => {
+          if (!target) {
+              return;
+          }
+          if (!isLineMatch(target.value, classId)){
+            return;
+          }
+          const x = target.value;
+          if (x !== newNode.value) {
+              // If the node is already hidden, skip
+              if (hiddenNodes[x]) {
+                  return;
+              }
+              const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+              // Hide connecting lines and related elements
+              if (!hasOtherConnections && x !== newNode.value) {
+                console.log(x)
+                  hideElement(x);
+              }
+              if (hasOtherConnections && x !== newNode.value) {
+              svg.selectAll(`.link[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+              svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+              }
+              hiddenNodes[x] = true;
+              // Get the child nodes related to the current node and hide them recursively
+              hideRelatedIncoming(x, newNode);
+          }
+      });
+  }
+  function hideRelatedSubs(classId, newNode) {
+    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
+    SubClasses.forEach(({ target }) => {
+        if (!target) {
+            return;
+        }
+        if (!isLineMatch(target.value, classId)){
+          return;
+        }
+        const x = target.value;
+        if (x !== newNode.value) {
+            // If the node is already hidden, skip
+            if (hiddenNodes[x]) {
+                return;
+            }
+            const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+            // Hide connecting lines and related elements
+            if (!hasOtherConnections && x !== newNode.value) {
+              console.log(x)
+                hideElement(x);
+            }
+            if (hasOtherConnections && x !== newNode.value) {
+            svg.selectAll(`.link[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode.value}"]`).style('display', 'none');
+            }
+            hiddenNodes[x] = true;
+            // Get the child nodes related to the current node and hide them recursively
+            hideRelatedSubs(x, newNode);
+        }
     });
 }
+
+  function isLineMatch(nodeId, startId) {
+    const lines = svg.selectAll('.link');
+    for (let i = 0; i < lines.size(); i++) {
+        const line = lines.nodes()[i];
+        const lineNodeId = line.getAttribute('nodeId');
+        const lineStartId = line.getAttribute('startId');
+        if (lineNodeId === nodeId && lineStartId === startId) {
+            return true; // Matching straight line found
+        }
+    }
+    return false; // No matching line found
+}
+
+  function hasOtherConnectionsExcept(nodeId, newNode) {
+      // Get all line elements
+      const lines = svg.selectAll('.link').filter(function() {
+          return d3.select(this).style('display') !== 'none';
+      });
+
+      let otherConnectionsExist = false;
+
+      // Traverse all line elements
+      lines.each(function() {
+          const line = d3.select(this);
+          const lineNodeId = line.attr('nodeId');
+          const lineStartId = line.attr('startId');
+
+          // Determine whether the starting node or ending node of the line is the given nodeId
+          if ((lineNodeId === nodeId || lineStartId === nodeId) && 
+              lineNodeId !== newNode.value && lineStartId !== newNode.value) {
+              otherConnectionsExist = true;
+          }
+      });
+
+      return otherConnectionsExist;
+  }
+
+  function hideElement(nodeId) {
+      // Hide connecting lines
+      svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+      // Hide text on connecting lines
+      svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+      // Hide circle
+      svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
+      svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
+  }
 }
 
   // extended relationship
-  function expandRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function expandIncomingRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log('Expanding relation for:', newNode.value);
       const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
@@ -1211,14 +1665,43 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
-        const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails);
+        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
         count=count+1;
       });
     } catch (error) {
       console.error('Error expanding relations:', error);
     }
   }
+  function expandOutgoingRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
+    try {
+      console.log('Expanding relation for:', newNode.value);
+      const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
+      const circleCX = +selectedCircle.attr('cx');
+      const circleCY = +selectedCircle.attr('cy');
+
+console.log('圆圈的位置:', circleCX, circleCY);
+
+      if (!newNode || !store) {
+        console.error('No node selected or RDF store is not available.');
+        return;
+      }
+    
+      const clickedNode = $rdf.namedNode(newNode.value);
+      console.log(clickedNode);
+      const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
+      console.log(OutgoingConnectedClasses);
+      let count =0;
+
+
+      OutgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
+        count=count+1;
+      });
+    } catch (error) {
+      console.error('Error expanding relations:', error);
+    }
+  }
+
 
   // Extend subclass
   function expandSubclasses(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
@@ -1235,17 +1718,17 @@ console.log('圆圈的位置:', circleCX, circleCY);
         
         const clickedNode = $rdf.namedNode(newNode.value);
         console.log(clickedNode);
-        const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-        console.log(outgoingConnectedClasses);
+        const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
         let count = 0;
-        outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-            if (target && target.value) { // Add checks for target and target.value
-                console.log(target, propertyUri);
-                const mainClassPosition = mainClassRef.current.getBoundingClientRect();
-                createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore, setSelectedClassDetails);
+        SubClasses.forEach(({ subClass }) => {
+            if (subClass) { // Add checks for target and target.value
+                const lastSlashIndex = subClass.lastIndexOf('/');
+                const target = lastSlashIndex !== -1 ? subClass.substring(lastSlashIndex + 1) : subClass;
+                const prope ='subClassof';
+                createDiskAndLink(svg, target, prope, 'subclass', subClass, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
                 count = count + 1;
             } else {
-                console.warn('Skipping target with null value:', target);
+                console.warn('Skipping target with null value:', subClass);
             }
         });
     } catch (error) {
@@ -1276,25 +1759,20 @@ function removeSelectedClass(nodeId: string) {
 
 }
 function addNewSubclass(classId) {
-  console.log(classId)
   // Create a popup for subclass name input
-  const clickedNode = $rdf.namedNode(classId);
   const subclassInput = prompt("Enter the name of the new subclass:");
   if (!subclassInput) {
       console.log("Subclass input is empty.");
       return; // Early return if input is empty
   }
-  const relationInput = "subclassOf";
-  // 根据用户输入创建新类的 URI
+
   const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
-  const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-  rdfHelpers.createClass(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-  expandSubclasses(svg,clickedNode,store);
+  rdfHelpers.createClass(store, newClassUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  expandSubclasses(svg,$rdf.namedNode(classId),store);
 }
-function addNewRelation(classId) {
-  const clickedNode = $rdf.namedNode(classId);
-  // Create a popup for subclass name input
-  const subclassInput = prompt("Enter the name of the new subclass:");
+function addNewOutgoingRelation(classId) {
+  // Create a popup for relation name input
+  const subclassInput = prompt("Enter the name of the new relation:");
   if (!subclassInput) {
       console.log("Subclass input is empty.");
       return; // Early return if input is empty
@@ -1303,28 +1781,40 @@ function addNewRelation(classId) {
   // 根据用户输入创建新类的 URI
   const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-  rdfHelpers.createRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-  expandRelations(svg,clickedNode,store);
+  rdfHelpers.createOutgoingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  expandOutgoingRelations(svg,$rdf.namedNode(classId),store);
 }
+function addNewIncomingRelation(classId) {
+  // Create a popup for relation name input
+  const subclassInput = prompt("Enter the name of the new relation:");
+  if (!subclassInput) {
+      console.log("Subclass input is empty.");
+      return; // Early return if input is empty
+  }
+  const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  // 根据用户输入创建新类的 URI
+  const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
+  const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+  rdfHelpers.createIncomingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  expandIncomingRelations(svg,$rdf.namedNode(classId),store);
+}
+
 function addNewAttribute(classId) {
-  const attributeLabel = prompt("Enter the label of the new attribute:");
+  const attributeLabel = window.prompt("Enter the label of the new attribute:");
   if (!attributeLabel) {
       console.log("Attribute label input is empty.");
-      return; 
+      return;
   }
-  const attributeComment = prompt("Enter the comment for the new attribute:");
+  const attributeComment = window.prompt("Enter the comment for the new attribute:");
   if (!attributeComment) {
       console.log("Attribute comment input is empty.");
       return;
   }
-  const attributeRange = prompt("Enter the data type (range) for the new attribute (e.g., xsd:string):");
-  if (!attributeRange) {
-      console.log("Attribute range input is empty.");
-      return;
-  }
-  const newAttributeUri = `https://schemaForge.net/pattern/${attributeLabel.trim().replace(/\s+/g, '-')}`;
-  rdfHelpers.createDataProperty(store,newAttributeUri,attributeLabel,attributeComment,classId, `http://www.w3.org/2001/XMLSchema#${attributeRange.trim()}`);
-  console.log("New attribute added successfully.");
+
+  // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+  setCurrentClassId(classId);
+  setAttributeDetails({ label: attributeLabel, comment: attributeComment }); 
+  setShowDataTypeModal(true);
 }
 
 
