@@ -32,8 +32,14 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     const mainClassRef = useRef(null);
     const [selectedClassDetails, setSelectedClassDetails] = useState<ClassDetails | null>(null);
     const [showDataTypeModal, setShowDataTypeModal] = useState(false);
+    const [showOutgoingModal, setShowOutgoingModal] = useState(false);
+    const [showIncomingModal, setShowIncomingModal] = useState(false);
     const [attributeDetails, setAttributeDetails] = useState({ label: '', comment: '' });
+    const [OutgoingDetails, setOutgoingDetails] = useState({ relation: ''});
+    const [IncomingDetails, setIncomingDetails] = useState({ relation: ''});
     const [currentClassId, setCurrentClassId] = useState(null);
+    const [OutgoingClassId, setOutgoingClassId] = useState(null);
+    const [IncomingClassId, setIncomingClassId] = useState(null);
 
     useEffect(() => {
         const svg = d3.select(svgRef.current)
@@ -147,12 +153,13 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                             .style('fill', 'black')
                             .text(circle)
                             .attr('text-anchor', 'middle') 
-                            .attr('dominant-baseline', 'middle')
-                            .call(d3.drag().on('drag', dragged));
+                            .attr('dominant-baseline', 'middle');
+                            
             
                         // 更新RDF存储
                         const classNode = $rdf.namedNode(circleName);
-                        store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                        store?.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
+                        store?.add(classNode,$rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'),circle);
                         console.log(`Added new circle named '${circleName}' at position (${coords[0]}, ${coords[1]})`);
                     }
             
@@ -209,7 +216,6 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'central')
                 .style('fill', 'black')
-                .call(d3.drag().on('drag', dragged))
                 .text(label);
 
                 function dragged(event) {
@@ -777,8 +783,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             // get the connected classes information related to the current node
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
 
-            SubClasses.forEach(({ target }) => {
-                const connectedNodeId = target.value; 
+            SubClasses.forEach(({ subClass }) => {
+                const connectedNodeId = subClass; 
                 // if the node has already been expanded, skip it
                 if (expandedNodes[connectedNodeId]) {
                     return;
@@ -857,11 +863,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
             console.log(SubClasses);
 
-            SubClasses.forEach(({ target }) => {
-                if (!target) {
+            SubClasses.forEach(({ subClass }) => {
+                if (!subClass) {
                     return;
                 }
-                const connectedNodeId = target.value;
+                const connectedNodeId = subClass;
 
                 // if the node has already been hidden, skip it
                 if (hiddenNodes[connectedNodeId]) {
@@ -1050,8 +1056,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         function expandRelatedSubs(nodeId) {
             // get the connected classes information related to the current node
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-            SubClasses.forEach(({ target }) => {
-                const connectedNodeId = target.value;
+            SubClasses.forEach(({ subClass }) => {
+                const connectedNodeId = subClass;
                 // if the node has already been expanded, skip it
                 if (expandedNodes[connectedNodeId]) {
                     return;
@@ -1123,8 +1129,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         function expandRelatedSubs(nodeId) {
             // get the connected classes information related to the current node
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-            SubClasses.forEach(({ target }) => {
-                const connectedNodeId = target.value;
+            SubClasses.forEach(({ subClass }) => {
+                const connectedNodeId = subClass;
                 // if the node has already been expanded, skip it
                 if (expandedNodes[connectedNodeId]) {
                     return;
@@ -1224,12 +1230,12 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
             console.log(SubClasses);
     
-            SubClasses.forEach(({ target }) => {
-                if (!target) {
+            SubClasses.forEach(({ subClass }) => {
+                if (!subClass) {
                     return;
                 }
     
-                const connectedNodeId = target.value;
+                const connectedNodeId = subClass;
                 console.log(connectedNodeId);
     
                 // if the node has already been hidden, skip it
@@ -1337,12 +1343,12 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
             console.log(SubClasses);
     
-            SubClasses.forEach(({ target }) => {
-                if (!target) {
+            SubClasses.forEach(({ subClass }) => {
+                if (!subClass) {
                     return;
                 }
     
-                const connectedNodeId = target.value;
+                const connectedNodeId = subClass;
                 console.log(connectedNodeId);
     
                 // if the node has already been hidden, skip it
@@ -1433,7 +1439,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 const prope ='subClassof';
                 
                 console.log(target,prope,targetValue,classId)
-                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                const selectedCircle = d3.select(`circle[nodeId="${classId}"]`);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
                 expandedValues.add(targetValue);
@@ -1448,7 +1454,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     mainClassRef,
                     classId,
                     count,
-                    setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
+                    setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal
 
                 );
                 count=count+1;
@@ -1477,7 +1483,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             let count=0;
     
             incomingConnectedClasses.forEach(({ target, propertyUri }) => {
-                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                const selectedCircle = d3.select(`circle[nodeId="${classId}"]`);
                 console.log(target)
                 console.log(selectedCircle);
                 const cxValue = +selectedCircle.attr('cx');
@@ -1497,8 +1503,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         mainClassRef,
                         classId,
                         count,
-                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
-                    );
+                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal
+                        );
                     count=count+1;
                 } else {
                     console.log(`Skipping duplicate target value: ${target.value}`);
@@ -1534,7 +1540,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     return;
                 }
 
-                const selectedCircle = d3.select(`circle[classId="${classId}"]`);
+                const selectedCircle = d3.select(`circle[nodeId="${classId}"]`);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
                 expandedValues.add(targetValue);
@@ -1549,8 +1555,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     mainClassRef,
                     classId,
                     count,
-                    setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
-
+                    setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal
                 );
                 count=count+1;
             });
@@ -1592,32 +1597,34 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         expandSubclasses(classId);
     }
     function addNewOutgoingRelation(classId) {
-        // Create a popup for relation name input
-        const subclassInput = prompt("Enter the name of the new relation:");
-        if (!subclassInput) {
-            console.log("Subclass input is empty.");
-            return; // Early return if input is empty
-        }
+       
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
-        // 根据用户输入创建新类的 URI
-        const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-        rdfHelpers.createOutgoingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-        expandOutgoingRelations(classId);
+         // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+         setOutgoingClassId(classId);
+         setOutgoingDetails({ relation:relationUri });
+         setShowOutgoingModal(true);
     }
+    const handleOutgoingSelect = (e) => {
+        const newClassUri = e.target.value;
+        setShowOutgoingModal(false); // 关闭数据类型选择的模态框
+        rdfHelpers.createOutgoingRelation(store, newClassUri, OutgoingDetails.relation,OutgoingClassId, setStore);
+        expandOutgoingRelations(OutgoingClassId);
+    };
+    
     function addNewIncomingRelation(classId) {
-        // Create a popup for relation name input
-        const subclassInput = prompt("Enter the name of the new relation:");
-        if (!subclassInput) {
-            console.log("Subclass input is empty.");
-            return; // Early return if input is empty
-        }
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
-        // 根据用户输入创建新类的 URI
-        const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-        rdfHelpers.createIncomingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-        expandIncomingRelations(classId);
+         // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+         setIncomingClassId(classId);
+         setIncomingDetails({ relation:relationUri });
+         setShowIncomingModal(true);
+    }
+    const handleIncomingSelect = (e) => {
+        const newClassUri = e.target.value;
+        setShowIncomingModal(false); // 关闭数据类型选择的模态框
+        rdfHelpers.createIncomingRelation(store, newClassUri, IncomingDetails.relation,IncomingClassId, setStore);
+        expandIncomingRelations(IncomingClassId);
     }
     
     
@@ -1665,6 +1672,38 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         <select onChange={(e) => handleDataTypeSelect(e)}>
                             {rdfHelpers.dataTypes.map((type) => (
                         <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
+                        </select>
+                        </Modal.Body>
+                        </Modal>
+                        )
+                    }
+                    {
+                        showOutgoingModal && (
+                        <Modal show={showOutgoingModal} onHide={() => setShowOutgoingModal(false)}>
+                        <Modal.Header closeButton>
+                        <Modal.Title>Choose Class</Modal.Title>
+                        </Modal.Header>
+                        <Modal.Body>
+                        <select onChange={(e) => handleOutgoingSelect(e)}>
+                            {rdfHelpers.getAllClasses(store).map((type) => (
+                        <option key={type} value={type}>{rdfHelpers.getLabelFromURI(store,type)}</option>
+                            ))}
+                        </select>
+                        </Modal.Body>
+                        </Modal>
+                        )
+                    }
+                    {
+                        showIncomingModal && (
+                        <Modal show={showIncomingModal} onHide={() => setShowIncomingModal(false)}>
+                        <Modal.Header closeButton>
+                        <Modal.Title>Choose Class</Modal.Title>
+                        </Modal.Header>
+                        <Modal.Body>
+                        <select onChange={(e) => handleIncomingSelect(e)}>
+                            {rdfHelpers.getAllClasses(store).map((type) => (
+                        <option key={type} value={type}>{rdfHelpers.getLabelFromURI(store,type)}</option>
                             ))}
                         </select>
                         </Modal.Body>

@@ -25,7 +25,15 @@ export const createDiskAndLink = (
   setSelectedClassDetails: (classDetails: any) => void,
   setAttributeDetails: React.Dispatch<React.SetStateAction<any>>,
   setShowDataTypeModal: React.Dispatch<React.SetStateAction<boolean>>,
-  setCurrentClassId:React.Dispatch<React.SetStateAction<any>>
+  setCurrentClassId:React.Dispatch<React.SetStateAction<any>>,
+  setOutgoingClassId:React.Dispatch<React.SetStateAction<any>>,
+  setOutgoingDetails:React.Dispatch<React.SetStateAction<any>>,
+  setShowOutgoingModal:React.Dispatch<React.SetStateAction<boolean>>,
+  setIncomingClassId:React.Dispatch<React.SetStateAction<any>>,
+  setIncomingDetails:React.Dispatch<React.SetStateAction<any>>,
+  setShowIncomingModal:React.Dispatch<React.SetStateAction<boolean>>
+
+  
 ): void => {
 
   if (svg.selectAll(`circle[nodeId="${nodeId}"]`).size() > 0){
@@ -879,14 +887,14 @@ function hideSubs(classId, newNode) {
   function hideRelatedSubs(classId) {
       // Get the connection line information related to the current node
       const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
-      SubClasses.forEach(({ target }) => {
-          if (!target) {
+      SubClasses.forEach(({ subClass }) => {
+          if (!subClass) {
               return;
           }
-          if (!isLineMatch(target.value, classId)){
+          if (!isLineMatch(subClass, classId)){
             return;
           }
-          const x = target.value;
+          const x = subClass;
           if (x!= newNode.value){
           // If the node is already hidden, skip
           if (hiddenNodes[x]) {
@@ -1031,11 +1039,11 @@ function expandHavingSubs(classId) {
       // Get the connection line information related to the current node
       const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
       
-      SubClasses.forEach(({ target }) => {
-        if (!target) {
+      SubClasses.forEach(({ subClass }) => {
+        if (!subClass) {
           return;
       }
-          const connectedNodeId = target.value; 
+          const connectedNodeId = subClass; 
           // If the node is already expanded, skip
           if (expandedNodes[connectedNodeId]) {
               return;
@@ -1203,11 +1211,11 @@ function expandHavingIncomingRelations(classId) {
   function expandRelatedSubs(nodeId) {
     // Get the connection line information related to the current node
     const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ target }) => {
-      if (!target) {
+    SubClasses.forEach(({ subClass }) => {
+      if (!subClass) {
         return;
     }
-        const connectedNodeId = target.value;
+        const connectedNodeId = subClass;
         // If the node is already expanded, skip
         if (expandedNodes[connectedNodeId]) {
             return;
@@ -1298,14 +1306,14 @@ function hideIncomingRelations(classId, newNode) {
   }
   function hideRelatedSubs(classId, newNode) {
     const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
-    SubClasses.forEach(({ target }) => {
-        if (!target) {
+    SubClasses.forEach(({ subClass }) => {
+        if (!subClass) {
             return;
         }
-        if (!isLineMatch(target.value, classId)){
+        if (!isLineMatch(subClass, classId)){
           return;
         }
-        const x = target.value;
+        const x =subClass;
         if (x !== newNode.value) {
             // If the node is already hidden, skip
             if (hiddenNodes[x]) {
@@ -1469,11 +1477,11 @@ function expandHavingOutgoingRelations(classId) {
   function expandRelatedSubs(nodeId) {
     // Get the connection line information related to the current node
     const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ target }) => {
-      if (!target) {
+    SubClasses.forEach(({ subClass }) => {
+      if (!subClass) {
         return;
     }
-        const connectedNodeId = target.value;
+        const connectedNodeId = subClass;
         // If the node is already expanded, skip
         if (expandedNodes[connectedNodeId]) {
             return;
@@ -1564,14 +1572,14 @@ function hideOutgoingRelations(classId, newNode) {
   }
   function hideRelatedSubs(classId, newNode) {
     const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
-    SubClasses.forEach(({ target }) => {
-        if (!target) {
+    SubClasses.forEach(({ subClass }) => {
+        if (!subClass) {
             return;
         }
-        if (!isLineMatch(target.value, classId)){
+        if (!isLineMatch(subClass, classId)){
           return;
         }
-        const x = target.value;
+        const x = subClass;
         if (x !== newNode.value) {
             // If the node is already hidden, skip
             if (hiddenNodes[x]) {
@@ -1665,7 +1673,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
+        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
         count=count+1;
       });
     } catch (error) {
@@ -1694,7 +1702,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
       OutgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
+        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
         count=count+1;
       });
     } catch (error) {
@@ -1725,7 +1733,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
                 const lastSlashIndex = subClass.lastIndexOf('/');
                 const target = lastSlashIndex !== -1 ? subClass.substring(lastSlashIndex + 1) : subClass;
                 const prope ='subClassof';
-                createDiskAndLink(svg, target, prope, 'subclass', subClass, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId);
+                createDiskAndLink(svg, target, prope, 'subclass', subClass, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
                 count = count + 1;
             } else {
                 console.warn('Skipping target with null value:', subClass);
@@ -1771,33 +1779,25 @@ function addNewSubclass(classId) {
   expandSubclasses(svg,$rdf.namedNode(classId),store);
 }
 function addNewOutgoingRelation(classId) {
-  // Create a popup for relation name input
-  const subclassInput = prompt("Enter the name of the new relation:");
-  if (!subclassInput) {
-      console.log("Subclass input is empty.");
-      return; // Early return if input is empty
-  }
+       
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
-  // 根据用户输入创建新类的 URI
-  const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-  rdfHelpers.createOutgoingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-  expandOutgoingRelations(svg,$rdf.namedNode(classId),store);
+   // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+   setOutgoingClassId(classId);
+   setOutgoingDetails({ relation:relationUri });
+   setShowOutgoingModal(true);
 }
+
+
 function addNewIncomingRelation(classId) {
-  // Create a popup for relation name input
-  const subclassInput = prompt("Enter the name of the new relation:");
-  if (!subclassInput) {
-      console.log("Subclass input is empty.");
-      return; // Early return if input is empty
-  }
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
-  // 根据用户输入创建新类的 URI
-  const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-  rdfHelpers.createIncomingRelation(store, newClassUri, relationUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
-  expandIncomingRelations(svg,$rdf.namedNode(classId),store);
+   // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+   setIncomingClassId(classId);
+   setIncomingDetails({ relation:relationUri });
+   setShowIncomingModal(true);
 }
+
 
 function addNewAttribute(classId) {
   const attributeLabel = window.prompt("Enter the label of the new attribute:");
