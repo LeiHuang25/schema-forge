@@ -236,29 +236,29 @@ export const createDiskAndLink = (
             let sourceX, sourceY, targetX, targetY;
     
             if (startId === nodeId) {
-                // 如果当前拖动的圆圈是连线的起点
+                // If the currently dragged circle is the starting point of the connection
                 const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
                 sourceX = newX;
                 sourceY = newY;
                 targetX = +otherCircle.attr('cx');
                 targetY = +otherCircle.attr('cy');
             } else if (endId === nodeId) {
-                // 如果当前拖动的圆圈是连线的终点
+                // If the currently dragged circle is the end point of the line
                 const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
                 sourceX = +otherCircle.attr('cx');
                 sourceY = +otherCircle.attr('cy');
                 targetX = newX;
                 targetY = newY;
             } else {
-                // 如果当前拖动的圆圈既不是起点也不是终点，则不更新该连线
+                // If the currently dragged circle is neither the starting point nor the end point, the connection will not be updated.
                 return;
             }
     
-            // 更新连线位置
+            // Update connection location
             const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
             line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`);
     
-            // 更新连线文本的位置
+            // Update position of wire text
             const midX = (sourceX + targetX) / 2;
             const midY = (sourceY + targetY) / 2;
             d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
@@ -657,29 +657,29 @@ if (direction === 'outgoing') {
         let sourceX, sourceY, targetX, targetY;
 
         if (startId === nodeId) {
-            // 如果当前拖动的圆圈是连线的起点
+            // If the currently dragged circle is the starting point of the connection
             const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
             sourceX = newX;
             sourceY = newY;
             targetX = +otherCircle.attr('cx');
             targetY = +otherCircle.attr('cy');
         } else if (endId === nodeId) {
-            // 如果当前拖动的圆圈是连线的终点
+            // If the currently dragged circle is the end point of the line
             const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
             sourceX = +otherCircle.attr('cx');
             sourceY = +otherCircle.attr('cy');
             targetX = newX;
             targetY = newY;
         } else {
-            // 如果当前拖动的圆圈既不是起点也不是终点，则不更新该连线
+            // If the currently dragged circle is neither the starting point nor the end point, the connection will not be updated.
             return;
         }
 
-        // 更新连线位置
+        // Update connection location
         const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
         line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`);
 
-        // 更新连线文本的位置
+        // Update position of wire text
         const midX = (sourceX + targetX) / 2;
         const midY = (sourceY + targetY) / 2;
         d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
@@ -1775,14 +1775,14 @@ function addNewSubclass(classId) {
   }
 
   const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
-  rdfHelpers.createClass(store, newClassUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  rdfHelpers.createClass(store, newClassUri,classId, setStore); // Assuming this function correctly handles creating the class and setting its superclass
   expandSubclasses(svg,$rdf.namedNode(classId),store);
 }
 function addNewOutgoingRelation(classId) {
        
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-   // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+   // Set the tag and comment status (if needed) and then show the modal with the data type
    setOutgoingClassId(classId);
    setOutgoingDetails({ relation:relationUri });
    setShowOutgoingModal(true);
@@ -1792,7 +1792,7 @@ function addNewOutgoingRelation(classId) {
 function addNewIncomingRelation(classId) {
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-   // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+   // Set the tag and comment status (if needed) and then show the modal with the data type
    setIncomingClassId(classId);
    setIncomingDetails({ relation:relationUri });
    setShowIncomingModal(true);
@@ -1811,7 +1811,7 @@ function addNewAttribute(classId) {
       return;
   }
 
-  // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+  // Set the tag and comment status (if needed) and then show the modal with the data type
   setCurrentClassId(classId);
   setAttributeDetails({ label: attributeLabel, comment: attributeComment }); 
   setShowDataTypeModal(true);

@@ -88,12 +88,12 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             const group = svg.select('g');
 
             group.select('rect').on('contextmenu', function(event, d) {
-                event.preventDefault(); // 阻止默认的右键菜单
+                event.preventDefault(); // Block default right-click menu
                 
-                // 检查是否已经存在自定义菜单栏，如果存在则先移除
+                // Check whether the custom menu bar already exists, if it exists, remove it first
                 d3.select('.custom-context-menu').remove();
             
-                // 创建一个自定义菜单栏
+                // Create a custom menu bar
                 const menu = d3.select('body')
                     .append('div')
                     .attr('class', 'custom-context-menu')
@@ -105,13 +105,13 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     .style('border-radius', '5px')
                     .style('box-shadow', '0 2px 5px rgba(0,0,0,0.2)');
             
-                // 向菜单栏添加选项
+                // Add options to menu bar
                 menu.append('div')
                 .text('Add New Class')
                 .style('cursor', 'pointer')
                 .on('click', function() {
                     const circle = window.prompt('Enter the name of the new circle:');
-                    if (!circle) return; // 如果用户取消输入或输入为空，则不执行后续操作
+                    if (!circle) return; // If the user cancels the input or the input is empty, no subsequent operations are performed
             
                     const circleName = `https://schemaForge.net/pattern/${circle.trim().replace(/\s+/g, '-')}`;
                     const exists = group.selectAll('.class-circle')
@@ -125,10 +125,10 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         const confirmAdd = window.confirm(`The class "${circle}" does not exist. Do you want to add it?`);
                         if (!confirmAdd) return; 
             
-                        // 获取点击位置
+                        // Get click location
                         const coords = d3.pointer(event);
             
-                        // 在点击位置添加新圆圈
+                        // Add new circle at clicked location
                         const newCircle = group.append('circle')
                             .attr('class', 'class-circle')
                             .attr('nodeId', circleName)
@@ -141,7 +141,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                             .style('stroke-width', 2)
                             .call(d3.drag().on('drag', dragged))
                             .on('contextmenu', (event) => displayContextMenu(event, circleName));
-                        // 添加圆圈的标签
+                        // Add circle label
                         group.append('text')
                             .attr('class', 'node-label')
                             .attr('nodeId', circleName)
@@ -156,21 +156,21 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                             .attr('dominant-baseline', 'middle');
                             
             
-                        // 更新RDF存储
+                        // Update RDF store
                         const classNode = $rdf.namedNode(circleName);
                         store?.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
                         store?.add(classNode,$rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'),circle);
                         console.log(`Added new circle named '${circleName}' at position (${coords[0]}, ${coords[1]})`);
                     }
             
-                    // 移除菜单栏
+                    // Remove menu bar
                     d3.select('.custom-context-menu').remove();
                 });
             
-                // 点击页面其他地方时移除菜单栏
+                // Remove menu bar when clicking elsewhere on page
                 d3.select('body').on('click.custom-menu', function() {
                     d3.select('.custom-context-menu').remove();
-                    d3.select('body').on('click.custom-menu', null); // 移除此事件监听
+                    d3.select('body').on('click.custom-menu', null); // Remove this event listener
                 });
             });
 
@@ -639,7 +639,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
         document.body.appendChild(contextMenu);
     
-        // 延迟添加全局点击事件监听器以避免立即移除
+        // Delay adding global click event listener to avoid immediate removal
         setTimeout(() => {
             document.addEventListener("click", function onClickOutside(event) {
             
@@ -1593,21 +1593,21 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     
         const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
-        rdfHelpers.createClass(store, newClassUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+        rdfHelpers.createClass(store, newClassUri,classId, setStore); // Assuming this function correctly handles creating the class and setting its superclass
         expandSubclasses(classId);
     }
     function addNewOutgoingRelation(classId) {
        
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-         // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+         // Set the tag and comment status (if needed) and then show the modal with the data type
          setOutgoingClassId(classId);
          setOutgoingDetails({ relation:relationUri });
          setShowOutgoingModal(true);
     }
     const handleOutgoingSelect = (e) => {
         const newClassUri = e.target.value;
-        setShowOutgoingModal(false); // 关闭数据类型选择的模态框
+        setShowOutgoingModal(false); // Close the modal box for data type selection
         rdfHelpers.createOutgoingRelation(store, newClassUri, OutgoingDetails.relation,OutgoingClassId, setStore);
         expandOutgoingRelations(OutgoingClassId);
     };
@@ -1615,14 +1615,14 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     function addNewIncomingRelation(classId) {
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
-         // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+         // Set the tag and comment status (if needed) and then show the modal with the data type
          setIncomingClassId(classId);
          setIncomingDetails({ relation:relationUri });
          setShowIncomingModal(true);
     }
     const handleIncomingSelect = (e) => {
         const newClassUri = e.target.value;
-        setShowIncomingModal(false); // 关闭数据类型选择的模态框
+        setShowIncomingModal(false); // Close the modal box for data type selection
         rdfHelpers.createIncomingRelation(store, newClassUri, IncomingDetails.relation,IncomingClassId, setStore);
         expandIncomingRelations(IncomingClassId);
     }
@@ -1640,16 +1640,16 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             return;
         }
     
-        // 设置标签和评论状态（如果需要），然后显示数据类型的模态框
+        // Set the tag and comment status (if needed) and then show the modal with the data type
         setCurrentClassId(classId);
-        setAttributeDetails({ label: attributeLabel, comment: attributeComment }); // 假设你需要在后续使用
+        setAttributeDetails({ label: attributeLabel, comment: attributeComment }); // Suppose you need to use it later
         setShowDataTypeModal(true);
     }
     const handleDataTypeSelect = (e) => {
         const dataType = e.target.value;
-        setShowDataTypeModal(false); // 关闭数据类型选择的模态框
+        setShowDataTypeModal(false); // Close the modal box for data type selection
     
-        // 在这里使用 attributeDetails, dataType 和 selectedClassId 来执行后续操作
+        // Use attributeDetails, dataType and selectedClassId here to perform subsequent operations
         const newAttributeUri = `https://schemaForge.net/pattern/${attributeDetails.label.trim().replace(/\s+/g, '-')}`;
         rdfHelpers.createDataProperty(store, newAttributeUri, attributeDetails.label, attributeDetails.comment, currentClassId, dataType);
         console.log("New attribute added successfully with data type: " + dataType);
