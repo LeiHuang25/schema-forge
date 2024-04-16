@@ -817,7 +817,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 const hasOtherConnections = hasOtherConnectionsExcept( classId,x);
                 // Hide connecting lines and related elements
                 if (!hasOtherConnections && x !==classId) {
-                    hideElement(x);
+                    hidestartElement(x);
                 }
                 if (hasOtherConnections && x !== classId) {
                   svg.selectAll(`.link[nodeId="${classId}"][startId="${x}"]`).style('display', 'none');
@@ -828,11 +828,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 // Get the child nodes related to the current node and hide them recursively
                 hideRelatedSubs(x);
                 hideRelatedIncoming(x,classId);
-                hideRelatedOutgoing(x, classId);
+                hideRelatedOutgoing(x,classId);
             }});
         }
       
-        function hideRelatedIncoming(classId, newNode) {
+        function hideRelatedIncoming(classId,Node) {
             const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
             IncomingClasses.forEach(({ target }) => {
                 if (!target) {
@@ -842,30 +842,30 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     return;
                   }
                 const x = target.value;
-                if (x!=newNode){
+                if (x!=Node){
                 // If the node is already hidden, skip
                 if (hiddenNodes[x]) {
                     return;
                 }
                 // Determine whether there are other connections besides the specified node
-                const hasOtherConnections = hasOtherConnectionsExcept( newNode,x);
+                const hasOtherConnections = hasOtherConnectionsExcept( x,Node);
                 // Hide connecting lines and related elements
-                if (!hasOtherConnections && x !== newNode) {
-                    hideElement(x);
+                if (!hasOtherConnections && x !== Node) {
+                    hidestartElement(x);
                 }
-                if (hasOtherConnections && x !== newNode) {
-                  console.log(x)
-                  svg.selectAll(`.link[nodeId="${newNode}"][startId="${x}"]`).style('display', 'none');
-                  svg.selectAll(`.link-text[nodeId="${newNode}"][startId="${x}"]`).style('display', 'none');
+                if (hasOtherConnections && x !==Node) {
+                  console.log(x,classId)
+                  svg.selectAll(`.link[nodeId="${Node}"][startId="${x}"]`).style('display', 'none');
+                  svg.selectAll(`.link-text[nodeId="${Node}"][startId="${x}"]`).style('display', 'none');
                   }
                 // Mark current node as hidden
                 hiddenNodes[x] = true;
                 // Get the child nodes related to the current node and hide them recursively
-                hideRelatedIncoming(x, newNode);
+                hideRelatedIncoming(x,Node);
             }});
         }
       
-        function hideRelatedOutgoing(classId, newNode) {
+        function hideRelatedOutgoing(classId,Node) {
           const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
           OutgoingClasses.forEach(({ target }) => {
               if (!target) {
@@ -875,26 +875,26 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 return;
               }
               const x = target.value;
-              if (x!=newNode){
+              if (x!=Node){
               // If the node is already hidden, skip
               if (hiddenNodes[x]) {
                   return;
               }
+      
               // Determine whether there are other connections besides the specified node
-              const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+              const hasOtherConnections = hasOtherConnectionsExcept(x, Node);
               // Hide connecting lines and related elements
-              if (!hasOtherConnections && x !== newNode.value) {
-                  hideElement(x);
+              if (!hasOtherConnections && x !== Node) {
+                  hideendElement(x);
               }
-              if (hasOtherConnections && x !== newNode.value) {
-                console.log(hasOtherConnections)
-                svg.selectAll(`.link[startId="${newNode.value}"][nodeId="${x}"]`).style('display', 'none');
-                svg.selectAll(`.link-text[startId="${newNode}"][nodeId="${x}"]`).style('display', 'none');
+              if (hasOtherConnections && x !== Node) {
+                svg.selectAll(`.link[startId="${x}"][nodeId="${Node}"]`).style('display', 'none');
+                svg.selectAll(`.link-text[startId="${x}"][nodeId="${Node}"]`).style('display', 'none');
                 }
               // Mark current node as hidden
               hiddenNodes[x] = true;
               // Get the child nodes related to the current node and hide them recursively
-              hideRelatedOutgoing(x, newNode);
+              hideRelatedOutgoing(x,Node);
           }});
       }
       
@@ -933,8 +933,17 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
           }
           return false; // No matching line found
       }
+      function hidestartElement(nodeId) {
+        // Hide connecting lines
+        svg.selectAll(`.link[startId="${nodeId}"]`).style('display', 'none');
+        // Hide text on connecting lines
+        svg.selectAll(`.link-text[startId="${nodeId}"]`).style('display', 'none');
+        // Hide circle
+        svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
+        svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
+      }
       
-        function hideElement(nodeId) {
+        function hideendElement(nodeId) {
             // Hide connecting lines
             svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
             // Hide text on connecting lines
@@ -963,9 +972,9 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     return;
                 }
                 // Expand connecting lines
-                svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+                svg.selectAll(`.link[nodeId="${classId}"]`).style('display', 'block');
                 // Expand the text on the connecting line
-                svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+                svg.selectAll(`.link-text[nodeId="${classId}"]`).style('display', 'block');
                 // expand circle
                 svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
                 svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
@@ -1006,8 +1015,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
         function expandRelatedIncoming(nodeId) {
           // Get the connection line information related to the current node
-          const IncomingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-          
+          const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
           IncomingClasses.forEach(({ target }) => {
             if (!target&&!target.value) {
               return;
@@ -1018,9 +1026,9 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                   return;
               }
               // Expand connecting lines
-              svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
+              svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'block');
               // Expand the text on the connecting line
-              svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
+              svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'block');
               // expand circle
               svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
               svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
@@ -1152,11 +1160,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
       function hideIncomingRelations(classId) {
         const hiddenNodes = {}; // Used to store hidden node IDs
         hideRelatedIncoming(classId);
-        console.log(classId)//student
       
         function hideRelatedIncoming(classId) {
             // Get the connection line information related to the current node
             const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
+            console.log(IncomingClasses)
             IncomingClasses.forEach(({ target }) => {
                 if (!target) {
                     return;
@@ -1170,85 +1178,85 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     if (hiddenNodes[x]) {
                         return;
                     }
-                    const hasOtherConnections = hasOtherConnectionsExcept( classId,x);
+                    const hasOtherConnections = hasOtherConnectionsExcept(x,classId);
                     // Hide connecting lines and related elements
                     if (!hasOtherConnections && x !== classId) {
-                      console.log(x)
-                        hideElement(x);
+                        hidestartElement(x);
                     }
                     if (hasOtherConnections && x !== classId) {
-                      console.log(x,classId)
-                      svg.selectAll(`.link[startId="${x}"][nodeId="${classId}"]`).style('display', 'none');
-                      svg.selectAll(`.link-text[startId="${x}"][nodeId="${classId}"]`).style('display', 'none');
-                      }
+                    svg.selectAll(`.link[startId="${x}"][nodeId="${classId}"]`).style('display', 'none');
+                    svg.selectAll(`.link-text[startId="${x}"][nodeId="${classId}"]`).style('display', 'none');
+                    }
+                   
                     hiddenNodes[x] = true;
                     // Get the child nodes related to the current node and hide them recursively
                     hideRelatedIncoming(x);
-                    hideRelatedOutgoing(x, classId);
-                    hideRelatedSubs(x, classId);
+                    hideRelatedOutgoing(x,classId);
+                    hideRelatedSubs(x,classId);
                 }
             });
         }
       
-        function hideRelatedOutgoing(classId, newNode) {
+        function hideRelatedOutgoing(classId,Node) {
             const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
             OutgoingClasses.forEach(({ target }) => {
                 if (!target) {
                     return;
                 }
-                if (!isLineMatch(target.value, classId)){
+                if (!isLineMatch(Node,target.value)){
                   return;
                 }
                 const x = target.value;
-                if (x !== newNode) {
+                if (x !== Node) {
                     // If the node is already hidden, skip
                     if (hiddenNodes[x]) {
                         return;
                     }
-                    const hasOtherConnections = hasOtherConnectionsExcept(x, newNode);
+                    const hasOtherConnections = hasOtherConnectionsExcept(x, Node);
                     // Hide connecting lines and related elements
-                    if (!hasOtherConnections && x !== newNode) {
-                      console.log(x)
-                        hideElement(x);
+                    if (!hasOtherConnections && x !== Node) {
+                        hideendElement(x);
                     }
-                    if (hasOtherConnections && x !== newNode) {
-                    svg.selectAll(`.link[nodeId="${x}"][startId="${newNode}"]`).style('display', 'none');
-                    svg.selectAll(`.link-text[nodeId="${x}"][startId="${newNode}"]`).style('display', 'none');
+                    if (hasOtherConnections && x !== Node) {
+                    svg.selectAll(`.link[nodeId="${Node}"][startId="${x}"]`).style('display', 'none');
+                    svg.selectAll(`.link-text[nodeId="${Node}"][startId="${x}"]`).style('display', 'none');
                     }
                     hiddenNodes[x] = true;
                     // Get the child nodes related to the current node and hide them recursively
-                    hideRelatedOutgoing(x, newNode);
+                    hideRelatedOutgoing(x,Node);
                 }
             });
         }
-        function hideRelatedSubs(classId, newNode) {
+        function hideRelatedSubs(classId,Node) {
           const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
           SubClasses.forEach(({ subClass }) => {
               if (!subClass) {
                   return;
               }
+              console.log(classId,subClass)
+      
               if (!isLineMatch(classId,subClass)){
                 return;
               }
               const x =subClass;
-              if (x !== newNode) {
+              if (x !== Node) {
                   // If the node is already hidden, skip
                   if (hiddenNodes[x]) {
                       return;
                   }
-                  const hasOtherConnections = hasOtherConnectionsExcept(newNode,x);
+                  console.log(x,Node)
+                  const hasOtherConnections = hasOtherConnectionsExcept(Node,x);
                   // Hide connecting lines and related elements
-                  if (!hasOtherConnections && x !== newNode) {
-                    console.log(x)
-                      hideElement(x);
+                  if (!hasOtherConnections && x !== Node) {
+                      hidestartElement(x);
                   }
-                  if (hasOtherConnections && x !== newNode) {
-                  svg.selectAll(`.link[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
-                  svg.selectAll(`.link-text[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
+                  if (hasOtherConnections && x !== Node) {
+                  svg.selectAll(`.link[startId="${x}"][nodeId="${Node}"]`).style('display', 'none');
+                  svg.selectAll(`.link-text[startId="${x}"][nodeId="${Node}"]`).style('display', 'none');
                   }
                   hiddenNodes[x] = true;
                   // Get the child nodes related to the current node and hide them recursively
-                  hideRelatedSubs(x, newNode);
+                  hideRelatedSubs(x,Node);
               }
           });
       }
@@ -1290,17 +1298,27 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             return otherConnectionsExist;
         }
       
-        function hideElement(nodeId) {
+        function hidestartElement(nodeId) {
+            console.log(nodeId)
             // Hide connecting lines
-            svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link[startId="${nodeId}"]`).style('display', 'none');
             // Hide text on connecting lines
-            svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[startId="${nodeId}"]`).style('display', 'none');
             // Hide circle
             svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
             svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
         }
-      }
       
+            function hideendElement(nodeId) {
+                // Hide connecting lines
+                svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+                // Hide text on connecting lines
+                svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+                // Hide circle
+                svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
+                svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
+            }
+          }
       function checkOutgoingRelationExists(classId) {
         const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
         let relationExists = false;
@@ -1322,6 +1340,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         let relationHide = false;
       
         OutgoingConnectedClasses.forEach(({ target }) => {
+          if(!target){return;}
             const nodeId = target.value;
             const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
             textlink.each(function() {
@@ -1430,6 +1449,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 if (!target) {
                     return;
                 }
+      
                 if (!isLineMatch(target.value, classId)){
                   return;
                 }
@@ -1439,12 +1459,13 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     if (hiddenNodes[x]) {
                         return;
                     }
-                    const hasOtherConnections = hasOtherConnectionsExcept(x, classId);
+                    const hasOtherConnections = hasOtherConnectionsExcept( x,classId);
                     // Hide connecting lines and related elements
                     if (!hasOtherConnections && x !== classId) {
-                        hideElement(x);
+                        hideendElement(x);
                     }
                     if (hasOtherConnections && x !== classId) {
+
                       svg.selectAll(`.link[nodeId="${x}"][startId="${classId}"]`).style('display', 'none');
                       svg.selectAll(`.link-text[nodeId="${x}"][startId="${classId}"]`).style('display', 'none');
                       }
@@ -1457,7 +1478,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             });
         }
       
-        function hideRelatedIncoming(classId, newNode) {
+        function hideRelatedIncoming(classId, Node) {
             const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
             IncomingClasses.forEach(({ target }) => {
                 if (!target) {
@@ -1467,28 +1488,27 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     return;
                   }
                 const x = target.value;
-                if (x !== newNode) {
+                if (x !== Node) {
                     // If the node is already hidden, skip
                     if (hiddenNodes[x]) {
                         return;
                     }
-                    const hasOtherConnections = hasOtherConnectionsExcept( newNode,x);
+                    const hasOtherConnections = hasOtherConnectionsExcept(x,Node);
                     // Hide connecting lines and related elements
-                    if (!hasOtherConnections && x !== newNode) {
-                      console.log(x)
-                        hideElement(x);
+                    if (!hasOtherConnections && x !== Node) {
+                        hidestartElement(x);
                     }
-                    if (hasOtherConnections && x !== newNode) {
-                    svg.selectAll(`.link[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
-                    svg.selectAll(`.link-text[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
+                    if (hasOtherConnections && x !== Node) {
+                    svg.selectAll(`.link[startId="${Node}"][nodeId="${x}"]`).style('display', 'none');
+                    svg.selectAll(`.link-text[startId="${Node}"][nodeId="${x}"]`).style('display', 'none');
                     }
                     hiddenNodes[x] = true;
                     // Get the child nodes related to the current node and hide them recursively
-                    hideRelatedIncoming(x, newNode);
+                    hideRelatedIncoming(x, Node);
                 }
             });
         }
-        function hideRelatedSubs(classId, newNode) {
+        function hideRelatedSubs(classId, Node) {
           const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(classId));
           SubClasses.forEach(({ subClass }) => {
               if (!subClass) {
@@ -1498,24 +1518,24 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 return;
               }
               const x = subClass;
-              if (x !== newNode) {
+              if (x !== Node) {
                   // If the node is already hidden, skip
                   if (hiddenNodes[x]) {
                       return;
                   }
-                  const hasOtherConnections = hasOtherConnectionsExcept(newNode,x);
+                  const hasOtherConnections = hasOtherConnectionsExcept(x,Node);
                   // Hide connecting lines and related elements
-                  if (!hasOtherConnections && x !== newNode) {
+                  if (!hasOtherConnections && x !== Node) {
                     console.log(x)
-                      hideElement(x);
+                      hidestartElement(x);
                   }
-                  if (hasOtherConnections && x !== newNode) {
-                  svg.selectAll(`.link[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
-                  svg.selectAll(`.link-text[startId="${x}"][nodeId="${newNode}"]`).style('display', 'none');
+                  if (hasOtherConnections && x !== Node) {
+                  svg.selectAll(`.link[startId="${Node}"][nodeId="${x}"]`).style('display', 'none');
+                  svg.selectAll(`.link-text[startId="${Node}"][nodeId="${x}"]`).style('display', 'none');
                   }
                   hiddenNodes[x] = true;
                   // Get the child nodes related to the current node and hide them recursively
-                  hideRelatedSubs(x, newNode);
+                  hideRelatedSubs(x, Node);
               }
           });
       }
@@ -1549,7 +1569,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
       
                 // Determine whether the starting node or ending node of the line is the given nodeId
                 if ((lineNodeId === nodeId || lineStartId === nodeId) && 
-                    lineNodeId !== newNode && lineStartId !== newNode.value) {
+                    lineNodeId !== newNode && lineStartId !== newNode) {
                     otherConnectionsExist = true;
                 }
             });
@@ -1557,16 +1577,27 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             return otherConnectionsExist;
         }
       
-        function hideElement(nodeId) {
+        function hidestartElement(nodeId) {
             // Hide connecting lines
-            svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link[startId="${nodeId}"]`).style('display', 'none');
             // Hide text on connecting lines
-            svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[startId="${nodeId}"]`).style('display', 'none');
             // Hide circle
             svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
             svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
         }
-      }
+      
+            function hideendElement(nodeId) {
+                // Hide connecting lines
+                svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+                // Hide text on connecting lines
+                svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
+                // Hide circle
+                svg.selectAll(`circle[nodeId="${nodeId}"]`).style('display', 'none');
+                svg.selectAll(`text[nodeId="${nodeId}"]`).style('display', 'none');
+            }
+          }
+      
     
 
     function expandSubclasses(classId) {
@@ -1768,9 +1799,10 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
          setShowOutgoingModal(true);
     }}
     const handleOutgoingSelect = (e) => {
-        if( IncomingDetails.relation){
+        if( OutgoingDetails.relation){
         const newClassUri = e.target.value;
         setShowOutgoingModal(false); // Close the modal box for data type selection
+        console.log('create')
         rdfHelpers.createOutgoingRelation(store, newClassUri, OutgoingDetails.relation,OutgoingClassId, setStore);
         expandOutgoingRelations(OutgoingClassId);
     }else return ;};

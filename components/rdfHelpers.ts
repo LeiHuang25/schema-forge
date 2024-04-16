@@ -349,7 +349,6 @@ export function createIncomingRelation(store, classLabel, relationUri,superClass
     // If a superclass is specified, creates a subClassOf relationship
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
-        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
         const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
         const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
         store.add(relationNode, exampleProperty, classNode);
@@ -364,7 +363,7 @@ export function createIncomingRelation(store, classLabel, relationUri,superClass
         setStore(store);
     }
     store.match(null, null, null).forEach(triple => {
-    //  console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+     //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
   });
 }
 export function createOutgoingRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
@@ -378,7 +377,6 @@ export function createOutgoingRelation(store, classLabel, relationUri,superClass
     store.add(classNode, label, propertyName);
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
-        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
         const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
         const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
         store.add(relationNode, exampleProperty, superClassNode);
