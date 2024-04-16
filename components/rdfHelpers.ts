@@ -1,11 +1,11 @@
 import * as $rdf from 'rdflib';
 
 
-export function getLabelFromURI(store, uri) {
-    const node = $rdf.namedNode(uri);
-    const labelTerm = store.any(node, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'));
-    return labelTerm ? labelTerm.value : uri;
+export function getLabelFromURI(store,uri) {
+  const lastSlashIndex = uri.lastIndexOf('/');
+  return lastSlashIndex !== -1 ? uri.substring(lastSlashIndex + 1) : uri;
 }
+
 //getSubClasses
 export function getOutgoingConnectedClasses(store, clickedNode) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
@@ -35,7 +35,7 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
     const queue = [clickedNode]; // Use a queue to store pending nodes
 
     while (queue.length > 0) {
-        const currentNode = queue.shift(); // Remove the first node of the team
+        const currentNode = queue.shift(); // take the first node of the team
 
         const properties = store.match(
             null,
@@ -153,7 +153,7 @@ export function getIncomingConnectedClasses(store, clickedNode) {
     }
 
     // Remove classes that are directly connected through getIncomingConnectedClasses
-    const directlyConnectedSuperClasses = getIncomingConnectedClasses(store, clickedNode);
+    const directlyConnectedSuperClasses = getSubClasses(store, clickedNode);
     directlyConnectedSuperClasses.forEach(classItem => {
         inferredSuperClasses.delete(classItem.target);
     });
@@ -162,27 +162,55 @@ export function getIncomingConnectedClasses(store, clickedNode) {
 }
 
 
+export function getInferredIncoming(store, clickedNode) {
+  const directlyIncomingClasses = getIncomingConnectedClasses(store, clickedNode);
+  const indirectlyIncomingClasses = new Set();
 
-  export function getInferredRelation(store, clickedNode) {
-    const directlyIncomingClasses = getIncomingConnectedClasses(store, clickedNode);
-    const indirectlyIncomingClasses = new Set();
-  
-    function findIndirectlyIncomingClasses(node) {
-        const incomingClasses = getIncomingConnectedClasses(store, node);
-        incomingClasses.forEach(({ target }) => {
-            // Add this line of code to check if the node is the same as clickedNode
-            if (!target.equals(clickedNode) &&
-                !directlyIncomingClasses.some(({ target: directTarget }) => directTarget.equals(target)) &&
-                !indirectlyIncomingClasses.has(target)) {
-                indirectlyIncomingClasses.add(target);
-                findIndirectlyIncomingClasses(target);
-            }
-        });
+  function findIndirectlyIncomingClasses(node, propertyUri) {
+      const incomingClasses = getIncomingConnectedClasses(store, node);
+      incomingClasses.forEach(({ target, propertyUri: incomingPropertyUri }) => {
+        if (target){
+          if (!target.equals(clickedNode) &&
+              !directlyIncomingClasses.some(({ target: directTarget }) => directTarget && directTarget.equals(target)) &&
+              !Array.from(indirectlyIncomingClasses).some(incoming => incoming.target.equals(target))) {
+              indirectlyIncomingClasses.add({ target, propertyUri: incomingPropertyUri });
+              findIndirectlyIncomingClasses(target, incomingPropertyUri);
+          }
+      }});
+  }
+
+  directlyIncomingClasses.forEach(({ target, propertyUri }) => {
+    if (target) { 
+        findIndirectlyIncomingClasses(target, propertyUri);
     }
-  
-    directlyIncomingClasses.forEach(({ target }) => findIndirectlyIncomingClasses(target));
-  
-    return Array.from(indirectlyIncomingClasses);
+});
+  return Array.from(indirectlyIncomingClasses);
+}
+
+export function getInferredOutgoing(store, clickedNode) {
+  const directlyOutgoingClasses = getOutgoingConnectedClasses(store, clickedNode);
+  const indirectlyOutgoingClasses = new Set();
+
+  function findIndirectlyOutgoingClasses(node, propertyUri) {
+      const OutgoingClasses = getOutgoingConnectedClasses(store, node);
+      OutgoingClasses.forEach(({ target, propertyUri: OutgoingPropertyUri }) => {
+        if (target){
+          if (!target.equals(clickedNode) &&
+              !directlyOutgoingClasses.some(({ target: directTarget }) => directTarget && directTarget.equals(target)) &&
+              !Array.from(indirectlyOutgoingClasses).some(Outgoing => Outgoing.target && Outgoing.target.equals(target))) {
+              indirectlyOutgoingClasses.add({ target, propertyUri: OutgoingPropertyUri });
+              findIndirectlyOutgoingClasses(target, OutgoingPropertyUri);
+          }
+      }});
+  }
+
+  directlyOutgoingClasses.forEach(({ target, propertyUri }) => {
+      if (target) { 
+          findIndirectlyOutgoingClasses(target, propertyUri);
+      }
+  });
+
+  return Array.from(indirectlyOutgoingClasses);
 }
 
   export function getDirectProperties(store: $rdf.IndexedFormula, node: $rdf.NamedNode): { [key: string]: string | number } {
@@ -209,12 +237,12 @@ export function getIncomingConnectedClasses(store, clickedNode) {
     const allInferredNodes = [...InferredSubClass, ...InferredRelation];
     const combinedProperties = {};
   
-    // Iterate over all inferred nodes and collect their data attributes
+    // 遍历所有推断出的节点，收集它们的数据属性
     allInferredNodes.forEach(node => {
         const classNode = $rdf.namedNode(node);
         const properties = getDirectProperties(store, classNode);
   
-        // Merge the data attributes of the current node into the total attribute object
+        // 将当前节点的数据属性合并到总的属性对象中
         Object.keys(properties).forEach(propertyKey => {
             combinedProperties[propertyKey] = properties[propertyKey];
         });
@@ -240,30 +268,57 @@ export function getIncomingConnectedClasses(store, clickedNode) {
   return dataProperties;
 };
 
-
+/*
 export function getInferredDataProperties(store, clickedNode) {
   const InferredSubClass = getInferredSubclasses(store, clickedNode);
-  const InferredRelation = getInferredRelation(store, clickedNode);
-  const allInferredNodes = [...InferredSubClass, ...InferredRelation];
+  const InferredOutgoing = getInferredOutgoing(store, clickedNode);
+  const InferredIncoming = getInferredIncoming(store, clickedNode);
+  console.log(InferredIncoming, InferredOutgoing);
+  const allInferredNodes = [...InferredSubClass, ...InferredOutgoing, ...InferredIncoming];
+  console.log(allInferredNodes);
   const combinedProperties = {};
 
-  // Iterate over all inferred nodes and collect their data attributes
-  allInferredNodes.forEach(node => {
-      const classNode = $rdf.namedNode(node);
-      const properties = getDataProperties(store, classNode);
+  // 遍历所有推断出的节点，收集它们的数据属性
+  allInferredNodes.forEach(item => {
+      let classNode;
+      if (item instanceof $rdf.NamedNode) {
+          // 处理情况，当item是一个NamedNode对象
+          classNode = item;
+      } else if (item.target instanceof $rdf.NamedNode) {
+          // 处理情况，当item是一个包含target属性的对象
+          classNode = item.target;
+      }
 
-      // Merge the data attributes of the current node into the total attribute object
-      Object.keys(properties).forEach(propertyKey => {
-          combinedProperties[propertyKey] = properties[propertyKey];
-      });
+      if (classNode) {
+          const properties = getDataProperties(store, classNode);
+          // 将当前节点的数据属性合并到总的属性对象中
+          Object.keys(properties).forEach(propertyKey => {
+              combinedProperties[propertyKey] = properties[propertyKey];
+          });
+      } else {
+          console.log('Invalid node or IRI:', item);
+      }
   });
+
   return combinedProperties;
 }
-
+*/
+export function getInferredDataProperties(store, clickedNode) {
+  const list=getInferredIncoming(store,clickedNode);
+  const combinedProperties = {};
+  list.forEach(item=>{
+    const classNode = item.target;
+    const properties = getDataProperties(store, classNode);
+          // 将当前节点的数据属性合并到总的属性对象中
+          Object.keys(properties).forEach(propertyKey => {
+              combinedProperties[propertyKey] = properties[propertyKey];
+          });
+    
+  })
+  return combinedProperties;
+}
 export function createClass(store, classLabel,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
-    // 创建新类节点
     const classNode = $rdf.namedNode(classLabel);
-    // 如果指定了超类，则创建 subClassOf 关系
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
         console.log(superClassNode)
@@ -272,7 +327,6 @@ export function createClass(store, classLabel,superClassUri = 'http://www.w3.org
 
     console.log("Updated store after adding new class and relationships:", store);
 
-    // 更新状态来触发画布的重新渲染
     if (typeof setStore === 'function') {
         setStore(store);
     }
@@ -282,7 +336,7 @@ export function createClass(store, classLabel,superClassUri = 'http://www.w3.org
 }
 export function createIncomingRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
     console.log("Creating new class:", classLabel,relationUri,superClassUri);
-    // Create new class node
+   // Create new class node
     const classNode = $rdf.namedNode(classLabel);
     const relationNode = $rdf.namedNode(relationUri);
     // Mark the new class as an instance of the RDF type
@@ -299,7 +353,7 @@ export function createIncomingRelation(store, classLabel, relationUri,superClass
         const exampleProperty = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
         const examplePropert = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
         store.add(relationNode, exampleProperty, classNode);
-        store.add(relationNode, examplePropert, superClassNode); // Set new class as domain
+        store.add(relationNode, examplePropert, superClassNode);  // Set new class as domain
 
     }
 
@@ -310,22 +364,18 @@ export function createIncomingRelation(store, classLabel, relationUri,superClass
         setStore(store);
     }
     store.match(null, null, null).forEach(triple => {
-      console.log(triple.subject.value, triple.predicate.value, triple.object.value);
+    //  console.log(triple.subject.value, triple.predicate.value, triple.object.value);
   });
 }
 export function createOutgoingRelation(store, classLabel, relationUri,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
     console.log("Creating new class:", classLabel,relationUri,superClassUri);
-    // 创建新类节点
     const classNode = $rdf.namedNode(classLabel);
     const relationNode = $rdf.namedNode(relationUri);
-    // 将新类标记为 RDF 类型的一个实例
     store.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
     const label = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label');
     const lastSlashIndex = classLabel.lastIndexOf('/');
   const propertyName = lastSlashIndex !== -1 ? classLabel.substring(lastSlashIndex + 1) : classLabel;
     store.add(classNode, label, propertyName);
-
-    // 如果指定了超类，则创建 subClassOf 关系
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
         store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
@@ -337,7 +387,6 @@ export function createOutgoingRelation(store, classLabel, relationUri,superClass
     }
     console.log("Updated store after adding new class and relationships:", store);
 
-    // 更新状态来触发画布的重新渲染
     if (typeof setStore === 'function') {
         setStore(store);
     }
@@ -354,23 +403,23 @@ export function createDataProperty(store, classUri, label, comment, domainUri, r
   const domainPred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain');
   const rangePred = $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range');
 
-  // 设置为 Property 类型
+  // set the type of Property 
   store.add(classNode, typePred, propertyType);
   console.log(`${classUri} – ${typePred.uri} – "${propertyType.uri}"`);
 
-  // 添加 label
+  // add label
   store.add(classNode, labelPred, $rdf.literal(label));
   console.log(`${classUri} – ${labelPred.uri} – "${label}"`);
 
-  // 添加 comment
+  // add comment
   store.add(classNode, commentPred, $rdf.literal(comment));
   console.log(`${classUri} – ${commentPred.uri} – "${comment}"`);
 
-  // 设置 domain
+  // set domain
   store.add(classNode, domainPred, $rdf.namedNode(domainUri));
   console.log(`${classUri} – ${domainPred.uri} – "${domainUri}"`);
 
-  // 设置 range
+  // set range
   store.add(classNode, rangePred, $rdf.namedNode(rangeUri));
   console.log(`${classUri} – ${rangePred.uri} – "${rangeUri}"`);
 }
@@ -427,7 +476,9 @@ export function getAllClasses(store) {
   const RDF_TYPE = $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
   const RDFS_CLASS = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
 
-  const classes = store.match(null, RDF_TYPE, RDFS_CLASS);
-
-  return classes.map(stmt => stmt.subject.value);
+  const classStatements = store.match(null, RDF_TYPE, RDFS_CLASS);
+  const classURIs = classStatements.map(stmt => stmt.subject.value); 
+  classURIs.unshift("Choose Class");
+  return classURIs;
 }
+
