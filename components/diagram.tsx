@@ -770,6 +770,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 }
             } else if (action === 'expandOutgoingRelations') {
                 if (store) {
+                    console.log(classId);
                     // check if relation exists
                     const OutgoingRelationExists = checkOutgoingRelationExists(classId);
                     console.log(OutgoingRelationExists);
@@ -984,7 +985,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         
         
         OutgoingClasses.forEach(({ target }) => {
-            if (!target || !target.value) {
+            if (!target && !target.value) {
                 console.error('Error: Target or target.value is null or undefined');
                 return;
             }
@@ -1252,7 +1253,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             hiddenNodes[connectedNodeId] = true;
 
             // get the child nodes related to the current node and hide them recursively
-            hideRelatedSub(connectedNodeId);
+            hideRelatedSubs(connectedNodeId);
 
 
         });
