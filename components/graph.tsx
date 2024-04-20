@@ -4,6 +4,7 @@ import * as rdfHelpers from '@/components/rdfHelpers';
 import { start } from 'repl';
 import { has } from 'lodash';
 import { Lancelot } from 'next/font/google';
+import { comment } from 'postcss';
 
 // define the type of direction
 type Direction = 'incoming' | 'outgoing' | 'subclass';
@@ -31,7 +32,8 @@ export const createDiskAndLink = (
   setShowOutgoingModal:React.Dispatch<React.SetStateAction<boolean>>,
   setIncomingClassId:React.Dispatch<React.SetStateAction<any>>,
   setIncomingDetails:React.Dispatch<React.SetStateAction<any>>,
-  setShowIncomingModal:React.Dispatch<React.SetStateAction<boolean>>
+  setShowIncomingModal:React.Dispatch<React.SetStateAction<boolean>>,
+  setResetBottomPanel:React.Dispatch<React.SetStateAction<any>>
 
   
 ): void => {
@@ -336,6 +338,12 @@ export const createDiskAndLink = (
           const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
           setSelectedClassDetails(classDetails);
         }
+        const anySelected = svg.selectAll('circle.class-circle.selected').size() > 0;
+
+                    if (!anySelected) {
+                        setResetBottomPanel(false);
+                    }
+                    else{ setResetBottomPanel(true);}
       })
     .classed('class-circle', true)
     // right click event
@@ -349,11 +357,11 @@ export const createDiskAndLink = (
      
       const attributeEntries = Object.entries(tableData1);
       // Build attributed string
-      const attributeString = attributeEntries.map(([key, value]) => `${key}(${value})`).join(', ');
 
-      const attribute = Object.entries(inferreda);
+      const attribute = Object.entries(inferreda).map(([key, value]) => {
+          return [key, value];
+      });        
       // Build attributed string
-      const InferredAttr = attribute.map(([key, value]) => `${key}(${value})`).join(', ');
       
       // Get the selected circle element
       const selectedCircle = d3.select(`circle[nodeId="${selectedClass}"]`);
@@ -370,7 +378,6 @@ export const createDiskAndLink = (
       const Outgoing = rdfHelpers.getOutgoingConnectedClasses(store, classNode);
 
 
-      const InferredSubClass=rdfHelpers.getInferredSubclasses(store,classNode);
       const InferredIncoming=rdfHelpers.getInferredIncoming(store,classNode);
       const InferredOutgoing=rdfHelpers.getInferredOutgoing(store,classNode);
       
@@ -382,48 +389,51 @@ export const createDiskAndLink = (
       const subname = sublist.length > 0 ? sublist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
 
      
-      console.log(subname)
       const DirectOutgoing = Outgoing.map(item => {
-          if (item.target) {
+          if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
               const target=item.target.value;
-              return { property, targetValue,target };
+              const commentaire=item.comment;
+              return { property, targetValue,target,commentaire };
           } else {
               return null;
           }
       });
       const DirectIncoming = Incoming.map(item => {
-          if (item.target) {
+          if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
               const target = item.target.value;
-              return { property, targetValue,target };
+              const commentaire=item.comment;
+              return { property, targetValue,target,commentaire };
           } else {
               return null;
           }
       });
+
       const InferredO = InferredOutgoing.map(item => {
-          if (item.target) {
+          if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
               const target=item.target.value;
-              return { property, targetValue,target };
+              const commentaire=item.comment;
+              return { property, targetValue,target,commentaire };
           } else {
               return null;
           }
       }).filter(item => item !== null);
       const InferredI= InferredIncoming.map(item => {
-          if (item.target) {
+          if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
               const target = item.target.value;
-              return { property, targetValue,target };
+              const commentaire=item.comment;
+              return { property, targetValue,target,commentaire};
           } else {
               return null;
           }
       }).filter(item => item !== null);
-
      
       
       // If the circle is selected, return relevant information
@@ -433,19 +443,20 @@ export const createDiskAndLink = (
               name: name,
               superclass: supername,
               subclass: subname,
-              attributes: attributeString,
+              attributes: attributeEntries,
               relations: tableData,
               DirectOutgoing:DirectOutgoing,
               DirectIncoming:DirectIncoming,
               InferredOutgoing:InferredO,
               InferredIncoming:InferredI,
-              InferredAttr:InferredAttr,
+              InferredAttr:attribute,
           };
       } else {
           return null;
       }
       
     };
+    
     
     
   // Add text near circle
@@ -847,6 +858,7 @@ if (direction === 'outgoing') {
             }
           }else{
             console.log("Expanding incoming relations...");
+            console.log(newNode)
             expandOutgoingRelations(svg,newNode,store);
             console.log("Outgoing Relations expanded successfully.");
           }
@@ -1736,7 +1748,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
       incomingConnectedClasses.forEach(({ target, propertyUri }) => {
-        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
+        createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel);
         count=count+1;
       });
     } catch (error) {
@@ -1756,7 +1768,6 @@ console.log('圆圈的位置:', circleCX, circleCY);
         console.error('No node selected or RDF store is not available.');
         return;
       }
-    
       const clickedNode = $rdf.namedNode(newNode.value);
       console.log(clickedNode);
       const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
@@ -1765,7 +1776,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
       OutgoingConnectedClasses.forEach(({ target, propertyUri }) => {
-        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
+        createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel);
         count=count+1;
       });
     } catch (error) {
@@ -1796,7 +1807,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
                 const lastSlashIndex = subClass.lastIndexOf('/');
                 const target = lastSlashIndex !== -1 ? subClass.substring(lastSlashIndex + 1) : subClass;
                 const prope ='subClassof';
-                createDiskAndLink(svg, target, prope, 'subclass', subClass, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal);
+                createDiskAndLink(svg,  $rdf.namedNode(subClass), prope, 'subclass', subClass, { x: circleCX, y: circleCY }, store, mainClassRef, nodeId, count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel);
                 count = count + 1;
             } else {
                 console.warn('Skipping target with null value:', subClass);
