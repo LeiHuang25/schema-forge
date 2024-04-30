@@ -940,85 +940,41 @@ function hideSubs(classId) {
           if (hiddenNodes[connectedNodeId]) {
               return;
           }
-          // hide the link
-          svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the text on the link
-          svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
+          if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
+            // hide the link
+            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the text on the link
+            svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+          }else{
+            // hide the link
+            svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the text on the link
+            svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
 
-          // Hide circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+            // Hide circle
+            svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
 
-          // mark the current node as hided
-          hiddenNodes[connectedNodeId] = true;
-
-          // get the child nodes related to the current node and hide them recursively
-          if (connectedNodeId == nodeId) {
-              hideRelatedSubs(connectedNodeId);
-              hideRelatedIncoming(connectedNodeId);
-              hideRelatedOutgoing(connectedNodeId);
+            // mark the current node as hided
+            hiddenNodes[connectedNodeId] = true;
           }
       });
   }
 
-  function hideRelatedIncoming(nodeId) {
-      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-      IncomingClasses.forEach(({ target }) => {
-          if (!target) {
-              return;
-          }
-          const connectedNodeId = target.value;
-
-          // If the node is already hidden, skip
-          if (hiddenNodes[x]) {
-              return;
-          }
-
-          // hide the link
-          svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the text on the link
-          svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-  
-          // mark the current node as hided
-          hiddenNodes[connectedNodeId] = true;
-  
-          // get the child nodes related to the current node and hide them recursively
-          hideRelatedIncoming(connectedNodeId);
-      });
-  }
-
-  function hideRelatedOutgoing(nodeId) {
-    const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-    OutgoingClasses.forEach(({ target }) => {
-        if (!target) {
-            return;
+  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+    // Get all line elements
+    const links = svg.selectAll('.link');
+    let otherConnectionsExist = false;
+    links.each(function() {
+        const link = d3.select(this);
+        const startId = link.attr('startId');
+        const endId = link.attr('nodeId');
+        if ((startId === nodeId || endId === nodeId) && startId !== excludeNodeId && endId !== excludeNodeId) {
+            otherConnectionsExist = true;
         }
-
-        const connectedNodeId = target.value;
-
-        // If the node is already hidden, skip
-        if (hiddenNodes[connectedNodeId]) {
-            return;
-        }
-
-        // hide the link
-        svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the text on the link
-        svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-
-        // mark the current node as hided
-        hiddenNodes[connectedNodeId] = true;
-
-        // get the child nodes related to the current node and hide them recursively
-        hideRelatedOutgoing(connectedNodeId);
     });
-  }
+    return otherConnectionsExist;
+}
 
   
 }
@@ -1041,73 +997,17 @@ function expandHavingSubs(classId) {
               return;
           }
           // Expand connecting lines
-          svg.selectAll(`.link[startId="${classId}"]`).style('display', 'block');
+          svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'block');
           // Expand the text on the connecting line
-          svg.selectAll(`.link-text[startId="${classId}"]`).style('display', 'block');
+          svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'block');
           // expand circle
           svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
           // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // Get the child nodes related to the current node and expand them recursively
-          expandRelatedSubs(connectedNodeId);
-          expandRelatedOutgoing(connectedNodeId);
-          expandRelatedIncoming(connectedNodeId);
       });
   }
-  
-  function expandRelatedOutgoing(nodeId) {
-      // Get the connection line information related to the current node
-      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-      
-      OutgoingClasses.forEach(({ target }) => {
-        if (!target && !target.value) {
-          console.error('Error: Target or target.value is null or undefined');
-          return;
-      }
-          const connectedNodeId = target.value; // Modify the variable name connectedNodeId
-          // If the node is already expanded, skip
-          if (expandedNodes[connectedNodeId]) {
-              return;
-          }
-          // Expand connection line
-          svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // Expand the text on the connecting line
-          svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // expand circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // Mark current node as expanded
-          expandedNodes[connectedNodeId] = true;
-          // Get the child nodes related to the current node and expand them recursively
-          expandRelatedOutgoing(connectedNodeId);
-      });
-  }
-  function expandRelatedIncoming(nodeId) {
-    // Get the connection line information related to the current node
-    const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-    IncomingClasses.forEach(({ target }) => {
-      if (!target&&!target.value) {
-        return;
-    }
-        const connectedNodeId = target.value; 
-        // If the node is already expanded, skip
-        if (expandedNodes[connectedNodeId]) {
-            return;
-        }
-        // Expand connecting lines
-        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // Expand the text on the connecting line
-        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // expand circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // Mark current node as expanded
-        expandedNodes[connectedNodeId] = true;
-        // Get the child nodes related to the current node and expand them recursively
-        expandRelatedIncoming(connectedNodeId);
-    });
-}
+
 }
 
 function checkIncomingRelationExists(classId) {
@@ -1170,67 +1070,11 @@ function expandHavingIncomingRelations(classId) {
           // expand circle
           svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-              // Mark current node as expanded
+          // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // Get the child nodes related to the current node and expand them recursively
-          if (connectedNodeId == nodeId) {
-            expandRelatedIncoming(connectedNodeId);
-            expandRelatedOutgoing(connectedNodeId);
-            expandRelatedSubs(connectedNodeId);
-          }
       });
   }
-  function expandRelatedOutgoing(nodeId) {
-    // Get the connection line information related to the current node
-    const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-    OutgoingClasses.forEach(({ target }) => {
-      if (!target) {
-        return;
-      }
-      const connectedNodeId = target.value;
-      // If the node is already expanded, skip
-      if (expandedNodes[connectedNodeId]) {
-          return;
-      }
-      // Expand connecting lines
-      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      // Expand the text on the connecting line
-      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      // expand circle
-      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // Mark current node as expanded
-      expandedNodes[connectedNodeId] = true;
-      // Get the child nodes related to the current node and expand them recursively
-      expandRelatedOutgoing(connectedNodeId);
-    });
-  }
-
-  function expandRelatedSubs(nodeId) {
-    // Get the connection line information related to the current node
-    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ subClass }) => {
-      if (!subClass) {
-        return;
-    }
-        const connectedNodeId = subClass;
-        // If the node is already expanded, skip
-        if (expandedNodes[connectedNodeId]) {
-            return;
-        }
-        // Expand connecting lines
-        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // Expand the text on the connecting line
-        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // expand circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-            // Mark current node as expanded
-        expandedNodes[connectedNodeId] = true;
-        // Get the child nodes related to the current node and expand them recursively
-        expandRelatedSubs(connectedNodeId);
-    });
-  }
+  
 }
 
 function hideIncomingRelations(classId) {
@@ -1253,86 +1097,40 @@ function hideIncomingRelations(classId) {
               return;
           }
 
-          // hide the link
-          svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the text on the link
-          svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
+          if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
+            // hide the link
+            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the text on the link
+            svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+          }else {
+            // hide the link
+            svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the text on the link
+            svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the circle
+            svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
 
-          // mark the current node as hided
-          hiddenNodes[connectedNodeId] = true;
-
-          // get the child nodes related to the current node and hide them recursively
-          if (connectedNodeId == nodeId) {
-              hideRelatedIncoming(connectedNodeId);
-              hideRelatedOutgoing(connectedNodeId);
-              hideRelatedSubs(connectedNodeId);
+            // mark the current node as hided
+            hiddenNodes[connectedNodeId] = true;
           }
       });
   }
 
-  function hideRelatedOutgoing(nodeId) {
-      const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-      OutgoingClasses.forEach(({ target }) => {
-          if (!target) {
-              return;
-          }
-          if (!isLineMatch(Node,target.value)){
-            return;
-          }
-          const connectedNodeId = target.value;
-
-          // If the node is already hidden, skip
-          if (hiddenNodes[x]) {
-              return;
-          }
-
-          // hide the link
-          svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the text on the link
-          svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // mark the current node as hided
-          hiddenNodes[connectedNodeId] = true;
-          // get the child nodes related to the current node and hide them recursively
-          hideRelatedOutgoing(connectedNodeId);
-      });
-  }
-  function hideRelatedSubs(nodeId) {
-    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ subClass }) => {
-        if (!subClass) {
-            return;
+  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+    // Get all line elements
+    const links = svg.selectAll('.link');
+    let otherConnectionsExist = false;
+    links.each(function() {
+        const link = d3.select(this);
+        const startId = link.attr('startId');
+        const endId = link.attr('nodeId');
+        if ((startId === nodeId || endId === nodeId) && startId !== excludeNodeId && endId !== excludeNodeId) {
+            otherConnectionsExist = true;
         }
-        console.log(classId,subClass)
-
-
-        const connectedNodeId =subClass;
-
-        // If the node is already hidden, skip
-        if (hiddenNodes[connectedNodeId]) {
-            return;
-        }
-
-        // hide the link
-        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the text on the link
-        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-
-        // mark the current node as hided
-        hiddenNodes[connectedNodeId] = true;
-
-        // get the child nodes related to the current node and hide them recursively
-        hideRelatedSubs(connectedNodeId);
     });
-  }
+    return otherConnectionsExist;
+}
 
 }
 function checkOutgoingRelationExists(classId) {
@@ -1395,65 +1193,9 @@ function expandHavingOutgoingRelations(classId) {
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
               // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-          // Get the child nodes related to the current node and expand them recursively
-          if (connectedNodeId == nodeId) {
-            expandRelatedOutgoing(connectedNodeId);
-            expandRelatedIncoming(connectedNodeId);
-            expandRelatedSubs(connectedNodeId);
-          }
       });
   }
-  function expandRelatedIncoming(nodeId) {
-    // Get the connection line information related to the current node
-    const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-    IncomingClasses.forEach(({ target }) => {
-      if (!target) {
-        return;
-      }
-      const connectedNodeId = target.value;
-      // If the node is already expanded, skip
-      if (expandedNodes[connectedNodeId]) {
-          return;
-      }
-      // Expand connecting lines
-      svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      // Expand the text on the connecting line
-      svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      // expand circle
-      svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-      svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-          // Mark current node as expanded
-      expandedNodes[connectedNodeId] = true;
-      // Get the child nodes related to the current node and expand them recursively
-      expandRelatedIncoming(connectedNodeId);
-    });
-  }
-
-  function expandRelatedSubs(nodeId) {
-    // Get the connection line information related to the current node
-    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ subClass }) => {
-      if (!subClass) {
-        return;
-    }
-        const connectedNodeId = subClass;
-        // If the node is already expanded, skip
-        if (expandedNodes[connectedNodeId]) {
-            return;
-        }
-        // Expand connecting lines
-        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // Expand the text on the connecting line
-        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        // expand circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'block');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
-            // Mark current node as expanded
-        expandedNodes[connectedNodeId] = true;
-        // Get the child nodes related to the current node and expand them recursively
-        expandRelatedSubs(connectedNodeId);
-    });
-  }
+  
 }
 
 function hideOutgoingRelations(classId) {
@@ -1475,7 +1217,13 @@ function hideOutgoingRelations(classId) {
               return;
           }
 
-          // hide the link
+          if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
+            // hide the link
+            svg.selectAll(`.link[startId="${nodeId}"][nodeId="${connectedNodeId}"]`).style('display', 'none');
+            // hide the text on the link
+            svg.selectAll(`.link-text[startId="${nodeId}"][nodeId="${connectedNodeId}"]`).style('display', 'none');
+          }else {
+            // hide the link
           svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
           // hide the text on the link
           svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
@@ -1485,71 +1233,25 @@ function hideOutgoingRelations(classId) {
 
           // mark the current node as hided
           hiddenNodes[connectedNodeId] = true;
-
-          // get the child nodes related to the current node and hide them recursively
-          if (connectedNodeId == nodeId) {
-              hideRelatedOutgoing(connectedNodeId);
-              hideRelatedIncoming(connectedNodeId);
-              hideRelatedSubs(connectedNodeId);
           }
       });
   }
 
-  function hideRelatedIncoming(nodeId) {
-      const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-      IncomingClasses.forEach(({ target }) => {
-          if (!target) {
-              return;
-          }
-
-          const connectedNodeId = target.value;
-
-          // If the node is already hidden, skip
-          if (hiddenNodes[connectedNodeId]) {
-              return;
-          }
-
-          // hide the link
-          svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the text on the link
-          svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // hide the circle
-          svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-          // mark the current node as hided
-          hiddenNodes[connectedNodeId] = true;
-          // get the child nodes related to the current node and hide them recursively
-          hideRelatedIncoming(connectedNodeId);
-
-      });
-  }
-  function hideRelatedSubs(nodeId) {
-    const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-    SubClasses.forEach(({ subClass }) => {
-        if (!subClass) {
-            return;
+  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+    // Get all line elements
+    const links = svg.selectAll('.link');
+    let otherConnectionsExist = false;
+    links.each(function() {
+        const link = d3.select(this);
+        const startId = link.attr('startId');
+        const endId = link.attr('nodeId');
+        if ((startId === nodeId || endId === nodeId) && startId !== excludeNodeId && endId !== excludeNodeId) {
+            otherConnectionsExist = true;
         }
-
-        const connectedNodeId = subClass;
-
-        // If the node is already hidden, skip
-        if (hiddenNodes[connectedNodeId]) {
-            return;
-        }
-
-        // hide the link
-        svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the text on the link
-        svg.selectAll(`.link-text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        // hide the circle
-        svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
-        // mark the current node as hided
-        hiddenNodes[connectedNodeId] = true;
-        // get the child nodes related to the current node and hide them recursively
-        hideRelatedSubs(connectedNodeId);
     });
+    return otherConnectionsExist;
   }
+
 }
 
 
