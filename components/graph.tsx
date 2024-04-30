@@ -1222,7 +1222,18 @@ function expandHavingIncomingRelations(classId) {
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
           // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
+
+          svg.selectAll('circle').each(function(){
+            const circle = d3.select(this);
+            const nodeId = circle.attr('nodeId');
+    
+            if (circle.style('display') === 'block') {
+              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
+              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
+            }
+          })
       });
+      
   }
   
 }
@@ -1254,9 +1265,9 @@ function hideIncomingRelations(classId) {
             svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
           }else {
             // hide the link
-            svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
             // hide the text on the link
-            svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
             // hide the circle
             svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
             svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
@@ -1264,6 +1275,16 @@ function hideIncomingRelations(classId) {
             // mark the current node as hided
             hiddenNodes[connectedNodeId] = true;
           }
+
+          svg.selectAll('circle').each(function(){
+            const circle = d3.select(this);
+            const nodeId = circle.attr('nodeId');
+
+            if (circle.style('display') === 'none') {
+              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'none');
+              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'none');
+            }
+          })
       });
   }
 
@@ -1343,6 +1364,16 @@ function expandHavingOutgoingRelations(classId) {
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
               // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
+
+          svg.selectAll('circle').each(function(){
+            const circle = d3.select(this);
+            const nodeId = circle.attr('nodeId');
+    
+            if (circle.style('display') === 'block') {
+              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
+              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
+            }
+          })
       });
   }
   

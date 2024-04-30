@@ -997,7 +997,18 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     // Mark current node as expanded
                 expandedNodes[connectedNodeId] = true;
 
+                svg.selectAll('circle').each(function(){
+                    const circle = d3.select(this);
+                    const nodeId = circle.attr('nodeId');
+            
+                    if (circle.style('display') === 'block') {
+                      svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
+                      svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
+                    }
+                  })
+
             });
+            
         }
 
     }
@@ -1037,6 +1048,15 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     // mark the current node as hided
                     hiddenNodes[connectedNodeId] = true;
                 }
+                svg.selectAll('circle').each(function(){
+                    const circle = d3.select(this);
+                    const nodeId = circle.attr('nodeId');
+        
+                    if (circle.style('display') === 'none') {
+                      svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'none');
+                      svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'none');
+                    }
+                })
             });
         }
 
@@ -1116,6 +1136,16 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
                     // Mark current node as expanded
                 expandedNodes[connectedNodeId] = true;
+
+                svg.selectAll('circle').each(function(){
+                    const circle = d3.select(this);
+                    const nodeId = circle.attr('nodeId');
+            
+                    if (circle.style('display') === 'block') {
+                      svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
+                      svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
+                    }
+                  })
             });
         }
     }
@@ -1153,6 +1183,16 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     // mark the current node as hided
                     hiddenNodes[connectedNodeId] = true;
                 }
+
+                svg.selectAll('circle').each(function(){
+                    const circle = d3.select(this);
+                    const nodeId = circle.attr('nodeId');
+        
+                    if (circle.style('display') === 'none') {
+                      svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'none');
+                      svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'none');
+                    }
+                  })
             });
         }
     
