@@ -5,6 +5,7 @@ import { start } from 'repl';
 import { has } from 'lodash';
 import { Lancelot } from 'next/font/google';
 import { comment } from 'postcss';
+import { startTransition } from 'react';
 
 // define the type of direction
 type Direction = 'incoming' | 'outgoing' | 'subclass';
@@ -87,6 +88,7 @@ export const createDiskAndLink = (
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
       .text(` ${propertyName}`)
+      .attr('data-name', `${propertyName}`) 
       .style('font-size', '14px')
       .attr('x', midX)
       .attr('y', midY);
@@ -155,6 +157,111 @@ export const createDiskAndLink = (
     // add the drag event to the circle and the text
     relatedDisk.call(d3.drag().on('drag', dragged));
     labelText.call(d3.drag().on('drag', dragged));
+
+    d3.selectAll('text.link-text').on('click', function(event) {
+      event.stopPropagation();  // 阻止事件冒泡
+      const clickedText = d3.select(this);
+      const startId = clickedText.attr('startId');
+      const nodeId = clickedText.attr('nodeId');
+    
+      // 寻找所有与当前点击的 text 元素 startId 或 nodeId 相匹配的重叠 text 元素
+      const relatedElements = d3.selectAll('text.link-text, path.link').filter(function() {
+        const element = d3.select(this);
+        return ((element.attr('startId') === startId && element.attr('nodeId') === nodeId) ||
+                (element.attr('startId') === nodeId && element.attr('nodeId') === startId)) &&
+                element !== clickedText.node(); // 排除当前点击的文本
+      });
+    
+      // 隐藏其他相关元素
+      relatedElements.each(function() {
+        const element = d3.select(this);
+        if (element.node().tagName === 'text') {
+          element.style('visibility', 'hidden'); // 隐藏相关文本
+        } else if (element.node().tagName === 'path') {
+          element.style('visibility', 'hidden'); // 隐藏相关直线
+        }
+      });
+    
+      // 显示当前点击的文本
+      clickedText.style('visibility', 'visible');
+    
+      // 创建选择列表
+      const menu = d3.select('body').append('div')
+          .attr('class', 'custom-context-menu')
+          .style('position', 'absolute')
+          .style('left', `${event.pageX}px`)
+          .style('top', `${event.pageY}px`)
+          .style('background', 'white')
+          .style('padding', '10px')
+          .style('border-radius', '5px')
+          .style('box-shadow', '0 2px 5px rgba(0,0,0,0.2)');
+    
+      // 添加文本选项
+      const relatedTexts = relatedElements.filter(function() {
+        return d3.select(this).node().tagName === 'text';
+      });
+      relatedTexts.each(function() {
+        const text = d3.select(this);
+        const newText = text.text();
+        menu.append('div')
+            .text(newText)
+            .style('cursor', 'pointer')
+            .on('click', function() {
+              clickedText.style('visibility', 'hidden'); // 隐藏当前文本
+              var startId = text.attr('startId');
+              var nodeId =text.attr('nodeId');
+              var relatedLine = d3.select('path.link[startId="' + startId + '"][nodeId="' + nodeId + '"]');
+              text.style('visibility', 'visible'); // 显示被选中的文本
+              relatedLine.style('visibility', 'visible');
+              menu.remove(); // 关闭菜单
+            });
+      });
+    
+      // 点击其他位置关闭菜单
+      d3.select('body').on('click.menu', function() {
+        menu.remove();
+        d3.select('body').on('click.menu', null); // 移除此事件监听
+      });
+    });
+    
+    
+
+// 假设你已经创建了路径元素并且它们包含了正确的属性
+d3.selectAll('path.link').each(function() {
+  var currentPath = d3.select(this);
+  var startId = currentPath.attr('startId');
+  var nodeId = currentPath.attr('nodeId');
+
+
+  // 寻找反向路径
+  var reversePath = d3.selectAll('path.link:not([style="visibility: hidden;"])').filter(function() {
+    var otherPath = d3.select(this);
+    return otherPath.attr('startId') === nodeId && otherPath.attr('nodeId') === startId;
+});
+
+  if (reversePath.size() > 0) {
+    // 存在双向关系
+    // 判断并处理箭头
+    if (currentPath.attr('marker-end') && reversePath.attr('marker-start')) {
+      reversePath.style('visibility', 'hidden'); // 隐藏反向箭头的路径
+
+      // 获取反向路径的 startId 和 nodeId
+      var reverseStartId = reversePath.attr('startId');
+      var reverseNodeId = reversePath.attr('nodeId');
+  
+      // 隐藏与当前路径和反向路径相对应的文本
+      d3.selectAll('text.link-text').filter(function() {
+          var text = d3.select(this);
+          return  (text.attr('nodeId') === reverseNodeId && text.attr('startId') === reverseStartId);
+      }).style('visibility', 'hidden');
+  }
+  
+    
+  }
+});
+
+
+  
 
     function calculateDecalage(x1, y1, x2, y2, r) {
       const dx = x2 - x1;
@@ -598,6 +705,49 @@ if (direction === 'outgoing') {
 }else if (direction ==='subclass') {
   link.attr('marker-start', 'url(#arrowhead-subclass)');
 }
+
+d3.selectAll('line').each(function() {
+  var line = d3.select(this);
+  var startId = line.attr('startId');
+  var nodeId = line.attr('nodeId');  // 替换endId为nodeId
+
+  // 检查是否存在相同起点和终点的直线
+  var overlappingLines = d3.selectAll('line').filter(function() {
+      return d3.select(this).attr('startId') === nodeId && d3.select(this).attr('nodeId') === startId;
+  });
+
+  if (overlappingLines.size() > 1) {  // 检查是否有多于一条直线
+      // 标记为有多重关系
+      overlappingLines.classed('has-multiple-relations', true);
+
+      overlappingLines.select('text').on('contextmenu', function(event, d) {
+          event.preventDefault();
+          // 创建并显示关系列表菜单
+          var menu = d3.select('body').append('div')
+              .attr('class', 'custom-context-menu')
+              .style('position', 'absolute')
+              .style('left', `${event.pageX}px`)
+              .style('top', `${event.pageY}px`)
+              .style('background', 'white')
+              .style('padding', '10px')
+              .style('border-radius', '5px')
+              .style('box-shadow', '0 2px 5px rgba(0,0,0,0.2)');
+
+          overlappingLines.each(function() {
+              var currentText = d3.select(this).select('text').text();
+              menu.append('div')
+                  .text(currentText)
+                  .on('click', function() {
+                      // 更新直线表示为选中的关系
+                      d3.select(event.target).text(currentText);
+                      // 关闭菜单
+                      menu.remove();
+                  });
+          });
+      });
+  }
+});
+
   // Fonction pour calculer l'intersection entre la ligne de liaison et le cercle
   function calculateDecalage(x1, y1, x2, y2, r) {
     const dx = x2 - x1;
