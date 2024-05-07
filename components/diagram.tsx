@@ -36,9 +36,9 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     const [showDataTypeModal, setShowDataTypeModal] = useState(false);
     const [showOutgoingModal, setShowOutgoingModal] = useState(false);
     const [showIncomingModal, setShowIncomingModal] = useState(false);
-    const [attributeDetails, setAttributeDetails] = useState({ label: '', comment: '' });
-    const [OutgoingDetails, setOutgoingDetails] = useState({ relation: '',comment:''});
-    const [IncomingDetails, setIncomingDetails] = useState({ relation: '',comment:''});
+    const [attributeDetails, setAttributeDetails] = useState<{ label: string, comment: string | null }>({ label: '', comment: null });
+    const [OutgoingDetails, setOutgoingDetails] = useState<{ relation: string, comment: string | null }>({ relation: '', comment: null });
+    const [IncomingDetails, setIncomingDetails] = useState<{ relation: string, comment: string | null }>({ relation: '', comment: null });
     const [currentClassId, setCurrentClassId] = useState(null);
     const [OutgoingClassId, setOutgoingClassId] = useState(null);
     const [IncomingClassId, setIncomingClassId] = useState(null);
@@ -113,7 +113,6 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
    
 
     useEffect(() => {
-        console.log(store)
         if (selectedClass) {
             console.log(store)
             const startX = 100;
@@ -126,10 +125,13 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             .filter(function() { return d3.select(this).attr('nodeId') === selectedClass; });
 
             if (existingCircle.empty()) {
-            group.select('rect').on('contextmenu', function(event, d) {
-                event.preventDefault();// Block default right-click menu
-                // Check whether the custom menu bar already exists, if it exists, remove it first
-                d3.select('.custom-context-menu').remove();
+                svg.on('contextmenu', function(event) {
+                    event.preventDefault(); 
+                    const clickedElement =event.target;
+            
+                    const elementType = clickedElement.tagName.toLowerCase();
+                    if (elementType === 'svg' || elementType === 'rect') {
+                        d3.select('.custom-context-menu').remove();
             
                 // Create a custom menu bar
                 const menu = d3.select('body')
@@ -177,7 +179,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                             .style('fill', 'white')
                             .style('stroke', 'black')
                             .style('stroke-width', 2)
-                            .call(d3.drag().on('drag', dragged))
+                            .call((d3.drag().on('drag', dragged) as any))
                             .on('contextmenu', (event) => displayContextMenu(event, circleName))
                             .on('click', function () {
                                 const isSelected = d3.select(this).classed('selected');
@@ -190,8 +192,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                                     // Set the current circle to the selected state
                                     d3.select(this).classed('selected', true).style('stroke-width', 4);
                                     const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
-                                    setSelectedClassDetails(classDetails);
-                                }
+                                    setSelectedClassDetails(classDetails as ClassDetails | null);                                }
                             });
                         // Add circle label
                         group.append('text')
@@ -212,6 +213,8 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         const classNode = $rdf.namedNode(circleName);
                         store?.add(classNode, $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class'));
                         store?.add(classNode,$rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'),circle);
+                        const owlThingNode = $rdf.namedNode('http://www.w3.org/2002/07/owl#Thing');
+                        store?.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), owlThingNode);  
                         console.log(`Added new circle named '${circleName}' at position (${coords[0]}, ${coords[1]})`);
                     }
             
@@ -222,9 +225,26 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 // Remove menu  when clicking elsewhere on page
                 d3.select('body').on('click.custom-menu', function() {
                     d3.select('.custom-context-menu').remove();
-                    d3.select('body').on('click.custom-menu', null); // 移除此事件监听
+                    d3.select('body').on('click.custom-menu', null); 
                 });
-            });
+            }});
+            const dragged = function(this: any, event: MouseEvent) {
+                const newX = event.x;
+                const newY = event.y;
+            
+                d3.select(this)
+                    .attr('cx', newX)
+                    .attr('cy', newY);
+            
+                const svg = d3.select(svgRef.current);
+                const nodeId = this.getAttribute('nodeId');
+                svg.selectAll(`text[classId="${nodeId}"]`)
+                    .attr('x', newX)
+                    .attr('y', newY);
+                updateMainClassRelatedLines(newX, newY, nodeId);
+            };
+            
+            
 
             const dragBehavior: DragBehavior<SVGCircleElement, unknown, unknown> = d3.drag<SVGCircleElement, unknown>()
                 .on('drag', dragged);
@@ -252,7 +272,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         // Set the current circle to the selected state
                         d3.select(this).classed('selected', true).style('stroke-width', 4);
                         const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
-                        setSelectedClassDetails(classDetails);
+                        setSelectedClassDetails(classDetails as ClassDetails | null);
                     }
                     const anySelected = svg.selectAll('circle.class-circle.selected').size() > 0;
 
@@ -261,39 +281,24 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     }
                     else{ setResetBottomPanel(true);}
                 });
-
-            mainClassRef.current = disk.node();
-
+               
             const label = rdfHelpers.getLabelFromURI(store, selectedClass);
             group.append('text')
-                .attr('class', 'node-label')
-                .attr('nodeId', selectedClass)
-                .attr('classId', selectedClass)
-                .attr('x', startX)
-                .attr('y', startY)
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'central')
-                .style('fill', 'black')
-                .text(label);
+                 .attr('class', 'node-label')
+                 .attr('nodeId', selectedClass)
+                 .attr('classId', selectedClass)
+                 .attr('x', startX)
+                 .attr('y', startY)
+                 .attr('text-anchor', 'middle')
+                 .attr('dominant-baseline', 'central')
+                 .style('fill', 'black')
+                 .text(label);
 
-                function dragged(event) {
-                    const newX = event.x;
-                    const newY = event.y;
-                
-                    d3.select(this)
-                        .attr('cx', newX)
-                        .attr('cy', newY);
-                
-                    const svg = d3.select(svgRef.current);
-                    const nodeId = this.getAttribute('nodeId');
-                    svg.selectAll(`text[classId="${nodeId}"]`)
-                        .attr('x', newX)
-                        .attr('y', newY);
-                    updateMainClassRelatedLines(newX, newY, nodeId);
-                }
+
+
         }}
     }, [selectedClass]);
-    const getClassDetails = (selectedClass, store) => {
+    const getClassDetails = (selectedClass: any, store: any) => {    
         const classNode = $rdf.namedNode(selectedClass);
         const tableData=rdfHelpers.getDirectProperties(store, classNode);
         const tableData1=rdfHelpers.getDataProperties(store, classNode);
@@ -326,14 +331,17 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         const InferredOutgoing=rdfHelpers.getInferredOutgoing(store,classNode);
         
        
-        const superlist = superclass.map(superclass => superclass.superClass);
-        const supername = superlist.length > 0 ? superlist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+        const superlist = superclass?superclass.superClass: "None";
+        const Index = superlist.lastIndexOf('/');
+        const supername = Index !== -1 ? superlist.substring(Index + 1) : superlist;
+        console.log(supername)
+        
 
-        const sublist = subclass.map(subclass => subclass.subClass);
-        const subname = sublist.length > 0 ? sublist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+        const sublist = subclass.map((subclass:any)=> subclass.subClass);
+        const subname = sublist.length > 0 ? sublist.map((item:any) => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
 
        
-        const DirectOutgoing = Outgoing.map(item => {
+        const DirectOutgoing = Outgoing.map((item:any) => {
             if (item.target&&item.propertyUri) {
                 const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
                 const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -344,7 +352,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 return null;
             }
         });
-        const DirectIncoming = Incoming.map(item => {
+        const DirectIncoming = Incoming.map((item:any) => {
             if (item.target&&item.propertyUri) {
                 const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
                 const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -356,7 +364,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             }
         });
 
-        const InferredO = InferredOutgoing.map(item => {
+        const InferredO = InferredOutgoing.map((item:any) => {
             if (item.target&&item.propertyUri) {
                 const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
                 const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -367,7 +375,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 return null;
             }
         }).filter(item => item !== null);
-        const InferredI= InferredIncoming.map(item => {
+        const InferredI= InferredIncoming.map((item:any) => {
             if (item.target&&item.propertyUri) {
                 const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
                 const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -403,16 +411,33 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
       
 
 
-      const handleCircleClick = (nodeId,type) => {
+      const handleCircleClick = (nodeId:any,property:any,type:any) => {
         // Remove the "selected" class of all circles and set their borders to the default width
         d3.selectAll('.class-circle').classed('selected', false).style('stroke-width', 2);
     
         // Get SVG and group elements
         const svg = d3.select(svgRef.current);
         const group = svg.select('g');
+        const dragged = function(this: any, event: MouseEvent) {
+            const newX = event.x;
+            const newY = event.y;
+        
+            d3.select(this)
+                .attr('cx', newX)
+                .attr('cy', newY);
+        
+            const svg = d3.select(svgRef.current);
+            const nodeId = this.getAttribute('nodeId');
+            svg.selectAll(`text[classId="${nodeId}"]`)
+                .attr('x', newX)
+                .attr('y', newY);
+            updateMainClassRelatedLines(newX, newY, nodeId);
+        };
+        
     
         // Checks if a circle with the specified nodeId exists
         const existingCircle = group.select(`circle[nodeId="${nodeId}"]`);
+        const existingproperty=group.select(`text.link-text[data-name="${property}"]`)
         if (existingCircle.empty()) {
             // Get the lower position of the lowest circle on the canvas
             const biggestx = getLowestCircleYPosition(group);
@@ -432,7 +457,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 .style('fill', 'white')
                 .style('stroke', 'black')
                 .style('stroke-width', 2)
-                .call(d3.drag().on('drag', dragged))
+                .call((d3.drag().on('drag', dragged)as any))
                 .on('contextmenu', (event) => displayContextMenu(event, nodeId))
                 .on('click', function () {
                     const isSelected = d3.select(this).classed('selected');
@@ -445,7 +470,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         // Set the current circle to the selected state
                         d3.select(this).classed('selected', true).style('stroke-width', 4);
                         const classDetails = getClassDetails(this.getAttribute('nodeId'), store);
-                        setSelectedClassDetails(classDetails);
+                        setSelectedClassDetails(classDetails as ClassDetails | null);
                     }
                     const anySelected = svg.selectAll('circle.class-circle.selected').size() > 0;
 
@@ -455,7 +480,6 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                     else{ setResetBottomPanel(true);}
                 });
     
-            mainClassRef.current = newCircle.node();
     
             // Add label for new circle
             const label = rdfHelpers.getLabelFromURI(store, nodeId);
@@ -468,7 +492,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'central')
                 .style('fill', 'black')
-                .call(d3.drag().on('drag', dragged))
+                .call((d3.drag().on('drag', dragged) as any))
                 .text(label);
                 
 
@@ -476,37 +500,29 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
             // Set the details of the newly selected circle
             const classDetails = getClassDetails(nodeId, store);
-            setSelectedClassDetails(classDetails);
+            setSelectedClassDetails(classDetails as ClassDetails | null);
             
-        } else {
+        } else if((!existingCircle.empty()&&existingproperty.empty())){
+            updateRelationsForNewCircle(existingCircle,type);
+    
+            // Set the details of the newly selected circle
+            const classDetails = getClassDetails(nodeId, store);
+            setSelectedClassDetails(classDetails as ClassDetails | null);}
+        else{
             // If the circle already exists, set it to selected state
             existingCircle.classed('selected', true).style('stroke-width', 4);
             // Get and set the details of the newly selected circle
             const classDetails = getClassDetails(nodeId, store);
-            setSelectedClassDetails(classDetails);
+            setSelectedClassDetails(classDetails as ClassDetails | null);
         }
-        function dragged(event) {
-            const newX = event.x;
-            const newY = event.y;
         
-            d3.select(this)
-                .attr('cx', newX)
-                .attr('cy', newY);
-        
-            const svg = d3.select(svgRef.current);
-            const nodeId = this.getAttribute('nodeId');
-            svg.selectAll(`text[classId="${nodeId}"]`)
-                .attr('x', newX)
-                .attr('y', newY);
-            updateMainClassRelatedLines(newX, newY, nodeId);
-        }
     };
     
     // Get the lower position of the lowest circle on the canvas
-    function getLowestCircleYPosition(group) {
+    function getLowestCircleYPosition(group:any) {
         const circles = group.selectAll('.class-circle');
         let biggestx = 0;
-        circles.each(function () {
+        circles.each(function (this:any) {
             const cx = +d3.select(this).attr('cx');
             if (cx >biggestx) {
                 biggestx = cx;
@@ -516,7 +532,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     }
     
 
-    function updateRelationsForNewCircle(newCircle,type) {
+    function updateRelationsForNewCircle(newCircle:any,type:any) {
         console.log(newCircle);
         const svg = d3.select(svgRef.current);
         const group = svg.select('g');
@@ -532,8 +548,9 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             // Check if there is a outgoing relation
             const clickedNode = $rdf.namedNode(existingNodeId);
             const outgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, clickedNode);
-            outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+            outgoingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
                 if (target&&target.value === newCircle.attr('nodeId')&&type=='outgoing') {
+                if (store){
                 console.log('outgoing')
                 const selectedCircle = d3.select(`circle[nodeId="${existingNodeId}"]`);
                 const cxValue = +selectedCircle.attr('cx');
@@ -551,16 +568,15 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         mainClassRef,
                         existingNodeId,
                         1,
-                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
-    
-                    );
+                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel    
+                    );}
 
             }})
             
             // Check if there is a incoming relation
             
             const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, clickedNode);
-            incomingConnectedClasses.forEach(({ target, propertyUri }) => {
+            incomingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
                 if (target&&target.value === newCircle.attr('nodeId')&&type=='incoming') {
                 console.log('incoming')
                 console.log(existingNodeId)
@@ -568,6 +584,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 console.log(selectedCircle);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
+                if(store){
                     createDiskAndLink(
                         d3.select(svgRef.current).select('g'),
                         target,
@@ -579,16 +596,15 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         mainClassRef,
                         existingNodeId,
                         1,
-                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
-    
-                    );
+                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel        
+                    );}
 
             }})
 
             // Check if there is a subclass
 
             const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
-            SubClasses.forEach(({ target, propertyUri }) => {
+            SubClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
                 if (target&&target.value === newCircle.attr('nodeId')) {
                 console.log('subclass')
                 console.log(existingNodeId)
@@ -596,7 +612,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                 console.log(selectedCircle);
                 const cxValue = +selectedCircle.attr('cx');
                 const cyValue = +selectedCircle.attr('cy');
-
+                    if(store){
                     createDiskAndLink(
                         d3.select(svgRef.current).select('g'),
                         target,
@@ -608,21 +624,21 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         mainClassRef,
                         existingNodeId,
                         1,
-                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId
+                        setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel        
 
-                    );
+                    );}
             }})
         })
             newCircle.classed('selected', true).style('stroke-width', 4);
 
             // Get and set the details of the newly selected circle
             const classDetails = getClassDetails(newCircle.attr('nodeId'), store);
-            setSelectedClassDetails(classDetails);
+            setSelectedClassDetails(classDetails as ClassDetails | null);
     }
 
     
     
-    function calculateDecalage(x1, y1, x2, y2, r) {
+    function calculateDecalage(x1:any, y1:any, x2:any, y2:any, r:any) {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const dr = Math.sqrt(dx * dx + dy * dy);
@@ -633,7 +649,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         const y = (r * sin);
         return [x, y];
     }
-    function updateMainClassRelatedLines(newX, newY, nodeId) {
+    function updateMainClassRelatedLines(newX:any, newY:any, nodeId:any) {
         // Traverse all connecting lines
         d3.selectAll('.link-text').each(function() {
           const text = d3.select(this);
@@ -671,7 +687,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
   
 
 
-    function displayContextMenu(event, classId) {
+    function displayContextMenu(event:any, classId:any) {
         event.preventDefault();
         const x = event.clientX;
         const y = event.clientY;
@@ -709,7 +725,6 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
         document.body.appendChild(contextMenu);
     
-        // 延迟添加全局点击事件监听器以避免立即移除
         setTimeout(() => {
             document.addEventListener("click", function onClickOutside(event) {
             
@@ -721,7 +736,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     }
     
 
-    function handleMenuItemClick(action, classId) {
+    function handleMenuItemClick(action:any, classId:any) {
         try {
             console.log("Menu item clicked:", action);
             if (action === 'expandSubclasses') {
@@ -809,12 +824,12 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     }
     const svg = d3.select(svgRef.current);
-    function checkSubExists(classId) {
+    function checkSubExists(classId:any) {
         const clickedNode = $rdf.namedNode(classId);
         const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
         let subExists = false;
       
-        SubClasses.forEach(({ subClass }) => {
+        SubClasses.forEach(({ subClass }:any) => {
             const nodeId = subClass;
             const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
             if (!textlink.empty()) {
@@ -826,12 +841,12 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     }
 
 
-    function checkSubHide(classId) {
+    function checkSubHide(classId:any) {
     const clickedNode = $rdf.namedNode(classId);
     const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
     let subHide = false;
     
-    SubClasses.forEach(({ subClass }) => {
+    SubClasses.forEach(({ subClass }:any) => {
         const nodeId = subClass;
         const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
     
@@ -846,20 +861,19 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
     return subHide;
     }
-    function hideSubs(classId) {
-        const hiddenNodes = {}; // Used to store hidden node IDs
+    function hideSubs(classId:any) {
+        const hiddenNodes: { [key: string]: any } = {};
         hideRelatedSubs(classId);
-        
-        function hideRelatedSubs(nodeId) {
+        function hideRelatedSubs(nodeId:any) {
             // Get the connection line information related to the current node
             const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-            SubClasses.forEach(({ subClass }) => {
+            SubClasses.forEach(({ subClass }:any) => {
                 if (!subClass) {
                     return;
                 }
                 const connectedNodeId = subClass;
                 // If the node is already hidden, skip
-                if (hiddenNodes[connectedNodeId]) {
+                if (hiddenNodes[connectedNodeId.toString()]) {
                     return;
                 }
 
@@ -884,7 +898,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             });
         }
         
-        function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+        function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
             // Get all line elements
             const links = svg.selectAll('.link');
             let otherConnectionsExist = false;
@@ -901,15 +915,15 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
 
     }
 
-    function expandHavingSubs(classId) {
-    const expandedNodes = {}; // Used to store expanded node IDs
+    function expandHavingSubs(classId:any) {
+    const expandedNodes: { [key: string]: any } = {};
     expandRelatedSubs(classId);
     
-    function expandRelatedSubs(nodeId) {
+    function expandRelatedSubs(nodeId:any) {
         // Get the connection line information related to the current node
         const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
         
-        SubClasses.forEach(({ subClass }) => {
+        SubClasses.forEach(({ subClass }:any) => {
 
             if (!subClass) {
                 return;
@@ -917,7 +931,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             const connectedNodeId = subClass;
 
             // If the node is already expanded, skip
-            if (expandedNodes[connectedNodeId]) {
+            if (expandedNodes[connectedNodeId.toString()]) {
                 return;
             }
             // Expand connecting lines
@@ -937,11 +951,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
     }
 
-    function checkIncomingRelationExists(classId) {
+    function checkIncomingRelationExists(classId:any) {
     const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
     let relationExists = false;
     
-    incomingConnectedClasses.forEach(({ target }) => {
+    incomingConnectedClasses.forEach(({ target }:any) => {
         const nodeId = target.value;
         const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
         if (!textlink.empty()) {
@@ -952,11 +966,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
     return relationExists;
     }
-    function checkIncomingRelationHide(classId) {
+    function checkIncomingRelationHide(classId:any) {
     const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
     let relationHide = false;
     
-    incomingConnectedClasses.forEach(({ target }) => {
+    incomingConnectedClasses.forEach(({ target }:any) => {
         const nodeId = target.value;
         const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
         textlink.each(function() {
@@ -971,20 +985,20 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     return relationHide;
     }
 
-    function expandHavingIncomingRelations(classId) {
-        const expandedNodes = {}; // Used to store expanded node IDs
+    function expandHavingIncomingRelations(classId:any) {
+        const expandedNodes: { [key: string]: any } = {};      
         expandRelatedIncoming(classId);
-        function expandRelatedIncoming(nodeId) {
+        function expandRelatedIncoming(nodeId:any) {
             // Get the connection line information related to the current node
             const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-            IncomingClasses.forEach(({ target }) => {
+            IncomingClasses.forEach(({ target }:any) => {
                 
                 if (!target) {
                     return;
                 }
                 const connectedNodeId = target.value;
                 // If the node is already expanded, skip
-                if (expandedNodes[connectedNodeId]) {
+                if (expandedNodes[connectedNodeId.toString()]) {
                     return;
                 }
                 // Expand connecting lines
@@ -1013,33 +1027,33 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
 
     }
 
-    function hideIncomingRelations(classId) {
-        const hiddenNodes = {}; // Used to store hidden node IDs
+    function hideIncomingRelations(classId:any) {
+        const hiddenNodes: { [key: string]: any } = {};
         hideRelatedIncoming(classId);
         
-        function hideRelatedIncoming(nodeId) {
+        function hideRelatedIncoming(nodeId:any) {
             // Get the connection line information related to the current node
             const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
             console.log(IncomingClasses);
-            IncomingClasses.forEach(({ target }) => {
+            IncomingClasses.forEach(({ target }:any) => {
                 if (!target) {
                     return;
                 }
                 const connectedNodeId = target.value;
                 console.log(connectedNodeId);
                 // If the node is already hidden, skip
-                if (hiddenNodes[connectedNodeId]) {
+                if (hiddenNodes[connectedNodeId.toString()]) {
                     return;
                 }
 
                 if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
                     // hide the link
-                    svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'none');
+                    svg.selectAll(`.link[nodeId="${nodeId}"][marker-start="url(#arrowhead-incoming)"]`).style('display', 'none');
                     // hide the text on the link
                     svg.selectAll(`.link-text[nodeId="${nodeId}"]`).style('display', 'none');
                 } else{
                     // hide the link
-                    svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'none');
+                    svg.selectAll(`.link[startId="${connectedNodeId}"][marker-start="url(#arrowhead-incoming)"]`).style('display', 'none');
                     // hide the text on the link
                     svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
                     // hide the circle
@@ -1060,7 +1074,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             });
         }
 
-        function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+        function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
             // Get all line elements
             const links = svg.selectAll('.link');
             let otherConnectionsExist = false;
@@ -1076,11 +1090,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
 
     }
-    function checkOutgoingRelationExists(classId) {
+    function checkOutgoingRelationExists(classId:any) {
     const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
     let relationExists = false;
     
-    OutgoingConnectedClasses.forEach(({ target }) => {
+    OutgoingConnectedClasses.forEach(({ target }:any) => {
         if(!target){return ;}
         const nodeId = target.value;
         const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
@@ -1092,11 +1106,11 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     
     return relationExists;
     }
-    function checkOutgoingRelationHide(classId) {
+    function checkOutgoingRelationHide(classId:any) {
     const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
     let relationHide = false;
     
-    OutgoingConnectedClasses.forEach(({ target }) => {
+    OutgoingConnectedClasses.forEach(({ target }:any) => {
         if(!target){return;}
         const nodeId = target.value;
         const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
@@ -1112,19 +1126,19 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     return relationHide;
     }
 
-    function expandHavingOutgoingRelations(classId) {
-        const expandedNodes = {}; // Used to store expanded node IDs
+    function expandHavingOutgoingRelations(classId:any) {
+        const expandedNodes: { [key: string]: any } = {};
         expandRelatedOutgoing(classId);
-        function expandRelatedOutgoing(nodeId) {
+        function expandRelatedOutgoing(nodeId:any) {
             // Get the connection line information related to the current node
             const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-            OutgoingClasses.forEach(({ target }) => {
+            OutgoingClasses.forEach(({ target }:any) => {
                 if (!target) {
                 return;
             }
                 const connectedNodeId = target.value;
                 // If the node is already expanded, skip
-                if (expandedNodes[connectedNodeId]) {
+                if (expandedNodes[connectedNodeId.toString()]) {
                     return;
                 }
                 // Expand connecting lines
@@ -1150,20 +1164,20 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     }
 
-    function hideOutgoingRelations(classId) {
-        const hiddenNodes = {}; // Used to store hidden node IDs
+    function hideOutgoingRelations(classId:any) {
+        const hiddenNodes: { [key: string]: any } = {};
         hideRelatedOutgoing(classId);
         
-        function hideRelatedOutgoing(nodeId) {
+        function hideRelatedOutgoing(nodeId:any) {
             // Get the connection line information related to the current node
             const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-            OutgoingClasses.forEach(({ target }) => {
+            OutgoingClasses.forEach(({ target }:any) => {
                 if (!target) {
                     return;
                 }
                 const connectedNodeId = target.value;
                 // If the node is already hidden, skip
-                if (hiddenNodes[connectedNodeId]) {
+                if (hiddenNodes[connectedNodeId.toString()]) {
                     return;
                 }
 
@@ -1196,7 +1210,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             });
         }
     
-        function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+        function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
             // Get all line elements
             const links = svg.selectAll('.link');
             let otherConnectionsExist = false;
@@ -1215,7 +1229,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
 
 
 
-    function expandSubclasses(classId) {
+    function expandSubclasses(classId:any) {
         try {
             console.log("Expanding subclasses for:", classId);
             if (!classId || !store) {
@@ -1233,7 +1247,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             expandedValues.add(classId);
             let count=0;
 
-            SubClasses.forEach(({ subClass }) => {
+            SubClasses.forEach(({ subClass }:any) => {
                 const targetValue = subClass;
                 if (expandedValues.has(targetValue)) {
                     console.log(`Subclass with target value ${targetValue} has already been expanded.`);
@@ -1269,7 +1283,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     }
 
-    function expandIncomingRelations(classId) {
+    function expandIncomingRelations(classId:any) {
         try {
             console.log("Expanding Incoming relation for:", classId);
             if (!classId || !store) {
@@ -1287,7 +1301,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             console.log(incomingConnectedClasses);
             let count=0;
     
-            incomingConnectedClasses.forEach(({ target, propertyUri }) => {
+            incomingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
                 if(!target){return ;}
                 const selectedCircle = d3.select(`circle[nodeId="${classId}"]`);
                 console.log(target)
@@ -1321,7 +1335,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     }
     
-    function expandOutgoingRelations(classId) {
+    function expandOutgoingRelations(classId:any) {
         try {
             console.log("Expanding Outgoing relations for:", classId);
             if (!classId || !store) {
@@ -1339,7 +1353,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
             expandedValues.add(classId);
             let count=0;
 
-            outgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+            outgoingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
                 if(!target){return ;}
                 const targetValue = target.value;
                 if (expandedValues.has(targetValue)) {
@@ -1372,26 +1386,27 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     }
 
 
-    function removeSelectedClass(classId) {
-        const svg = d3.select(svgRef.current);
-        const selectedCircle = svg.select(`circle[nodeId="${classId}"]`);
-        const selectedText = svg.select(`text[nodeId="${classId}"]`);
-        const relatedLinks = svg.selectAll(`.link[nodeId="${classId}"], .link[startId="${classId}"]`);
-        const relatedTexts = svg.selectAll(`.link-text[nodeId="${classId}"], .link-text[startId="${classId}"]`);
-        const Links = svg.selectAll(`.link[startId="${classId}"]`);
-        Links.each(function() {
-            const line = d3.select(this);
-            const lineNodeId = line.attr('nodeId');
-            removeSelectedClass(lineNodeId);})
-
-  // remove the selected class and its related elements
-            selectedCircle.remove();
-            selectedText.remove();
-            relatedLinks.remove();
-            relatedTexts.remove();
-    }
-
-    function addNewSubclass(classId) {
+function removeSelectedClass(nodeId: string) {
+  // Select circles, text, connectors, and text on connectors to delete
+  const selectedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
+  const selectedText = svg.select(`text[nodeId="${nodeId}"]`);
+  const relatedLinks = svg.selectAll(`.link[nodeId="${nodeId}"], .link[startId="${nodeId}"]`);
+  const relatedTexts = svg.selectAll(`.link-text[nodeId="${nodeId}"], .link-text[startId="${nodeId}"]`);
+  const Links = svg.selectAll(`.link[startId="${nodeId}"]`);
+  // Remove selected circles, text, connectors, and text on connectors
+  selectedCircle.remove();
+  selectedText.remove();
+  relatedLinks.remove();
+  relatedTexts.remove();
+  Links.each(function() {
+    const line = d3.select(this);
+    const lineNodeId = line.attr('nodeId');
+    console.log(lineNodeId)
+    const isConnected = svg.selectAll(`.link[startId="${lineNodeId}"], .link[nodeId="${lineNodeId}"]`).size() > 0;
+    if(!isConnected){
+    removeSelectedClass(lineNodeId);}})
+}
+    function addNewSubclass(classId:any) {
         // Create a popup for subclass name input
         const subclassInput = prompt("Enter the name of the new subclass:");
         if (!subclassInput) {
@@ -1400,50 +1415,39 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
         }
     
         const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
-        rdfHelpers.createClass(store, newClassUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+        rdfHelpers.createClass(store, newClassUri,classId, setStore); 
         expandSubclasses(classId);
     }
-    function addNewOutgoingRelation(classId) {
-       
+    function addNewOutgoingRelation(classId:any) {
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
         if (!relationInput){return;}
-        const Comment = window.prompt("Enter the comment for the new Incoming Relation:");
-        if (!Comment) {
-            console.log("Attribute comment input is empty.");
-            return;
-        }
-        else{
+        const Comment = prompt("Enter the comment for the new outging Relation:");
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
          setOutgoingClassId(classId);
          setOutgoingDetails({ relation:relationUri,comment:Comment });
          setShowOutgoingModal(true);
-    }}
-    const handleOutgoingSelect = (e) => {
-        if( OutgoingDetails.relation){
+    }
+    const handleOutgoingSelect = (e:any) => {
+        if( OutgoingDetails.relation&&OutgoingClassId){
         const newClassUri = e.target.value;
         setShowOutgoingModal(false); // Close the modal box for data type selection
         console.log('create')
-        rdfHelpers.createOutgoingRelation(store, newClassUri, OutgoingDetails.relation,OutgoingClassId, setStore,IncomingDetails.comment);
+        rdfHelpers.createOutgoingRelation(store, newClassUri, OutgoingDetails.relation,OutgoingClassId, setStore,OutgoingDetails.comment);
         expandOutgoingRelations(OutgoingClassId);
     }else return ;};
     
-    function addNewIncomingRelation(classId) {
+    function addNewIncomingRelation(classId:any) {
         const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
         if (!relationInput){return;}
-        const Comment = window.prompt("Enter the comment for the new Incoming Relation:");
-        if (!Comment) {
-            console.log("Attribute comment input is empty.");
-            return;
-        }
-        else{
+        const Comment = prompt("Enter the comment for the new Incoming Relation:");
         const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
          // Set the tag and comment status (if needed) and then show the modal with the data type
          setIncomingClassId(classId);
          setIncomingDetails({ relation:relationUri,comment:Comment });
          setShowIncomingModal(true);
-    }}
-    const handleIncomingSelect = (e) => {
-        if( IncomingDetails.relation){
+    }
+    const handleIncomingSelect = (e:any) => {
+        if( IncomingDetails.relation&&IncomingClassId){
         const newClassUri = e.target.value;
         setShowIncomingModal(false); 
         rdfHelpers.createIncomingRelation(store, newClassUri, IncomingDetails.relation,IncomingClassId, setStore,IncomingDetails.comment);
@@ -1451,23 +1455,19 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     }else return ;}
     
     
-    function addNewAttribute(classId) {
+    function addNewAttribute(classId:any) {
         const attributeLabel = window.prompt("Enter the label of the new attribute:");
         if (!attributeLabel) {
             console.log("Attribute label input is empty.");
             return;
         }
         const attributeComment = window.prompt("Enter the comment for the new attribute:");
-        if (!attributeComment) {
-            console.log("Attribute comment input is empty.");
-            return;
-        }
     
         setCurrentClassId(classId);
         setAttributeDetails({ label: attributeLabel, comment: attributeComment }); 
         setShowDataTypeModal(true);
     }
-    const handleDataTypeSelect = (e) => {
+    const handleDataTypeSelect = (e:any) => {
         const dataType = e.target.value;
         setShowDataTypeModal(false); 
     
@@ -1507,7 +1507,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         </Modal.Header>
                         <Modal.Body>
                         <select className="centered-select" onChange={(e) => handleOutgoingSelect(e)}>
-                            {rdfHelpers.getAllClasses(store).map((uri,index) => (
+                            {rdfHelpers.getAllClasses(store).map((uri:any,index:any) => (
                         <option key={index} value={uri}>{rdfHelpers.getLabelFromURI(store, uri)}</option>
                             ))}
                         </select>
@@ -1523,7 +1523,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
                         </Modal.Header>
                         <Modal.Body>
                         <select className="centered-select" onChange={(e) => handleIncomingSelect(e)}>
-                            {rdfHelpers.getAllClasses(store).map((uri,index) => (
+                            {rdfHelpers.getAllClasses(store).map((uri:any,index:any) => (
                         <option key={index} value={uri}>{rdfHelpers.getLabelFromURI(store, uri)}</option>
                             ))}
                         </select>
@@ -1545,7 +1545,7 @@ const Diagram = ({ selectedClass, store, setTableData,setStore }:{
     );
 };
 
-const BottomPanel = ({ selectedClassDetails, onCircleClick ,reset}) => {
+const BottomPanel = ({ selectedClassDetails, onCircleClick ,reset}: { selectedClassDetails: any, onCircleClick: any, reset: boolean }) => {
     return (
         <div className="bottom-panel" style={{ height: '100%', width: '100%', overflowY: 'auto' }}>
             {(reset&&selectedClassDetails)?  (
@@ -1557,95 +1557,79 @@ const BottomPanel = ({ selectedClassDetails, onCircleClick ,reset}) => {
                             <th style={{ border: '1px solid black' }}>Description</th>
                         </tr>
                         <tr>
-                            <td colSpan="3" style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid black' }}>Properties from {selectedClassDetails.name}</td>
+                            <td colSpan={3} style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid black' }}>Properties from {selectedClassDetails.name}</td>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Direct Attributes */}
-                        {selectedClassDetails.attributes.map(([propertyName, details], index) => (
+                        {selectedClassDetails.attributes.map(([propertyName, details]: [any, { type: any; comment: any; }], index: any) => (
                             <tr key={index}>
                                 <td style={{ border: '1px solid black' }}>{propertyName}</td>
-                                <td style={{ border: '1px solid black' }}>{details.type || 'Unknown Type'}</td>
-                                <td style={{ border: '1px solid black' }}>{details.comment || 'No comment available'}</td>
+                                <td style={{ border: '1px solid black' }}>{details.type || ''}</td>
+                                <td style={{ border: '1px solid black' }}>{details.comment || ''}</td>
                             </tr>
                         ))}
 
                         {/* Direct Relations */}
-                        {selectedClassDetails.DirectOutgoing.map((item, index) => (
-                        item ? (
-                            <tr key={`outgoing-${index}`} onClick={() => onCircleClick(item.target, 'outgoing')} style={{ cursor: 'pointer', border: '1px solid black' }}>
-                                <td style={{ border: '1px solid black' }}>{item.property }</td>
-                                <td style={{ border: '1px solid black' }}>{item.targetValue}</td>
-                                <td style={{ border: '1px solid black' }}>{item.commentaire}</td>
-                            </tr>
-                            ) : (
-                            <tr key={`outgoing-${index}`} style={{ border: '1px solid black' }}>
-                                <td colSpan="3" style={{ textAlign: 'center' }}>No data available</td>
-                             </tr>
-                            )
-                        ))}
-
-                        {selectedClassDetails.DirectIncoming.map((item, index) => (
-                            item ? (
-                            <tr key={`incoming-${index}`} onClick={() => onCircleClick(item.target, 'incoming')} style={{ cursor: 'pointer', border: '1px solid black' }}>
+                        {selectedClassDetails.DirectOutgoing.map((item:any, index:any) => (
+                        item && (
+                            <tr key={`outgoing-${index}`} onClick={() => onCircleClick(item.target, item.property,'outgoing')} style={{ cursor: 'pointer', border: '1px solid black' }}>
                                 <td style={{ border: '1px solid black' }}>{item.property}</td>
                                 <td style={{ border: '1px solid black' }}>{item.targetValue}</td>
                                 <td style={{ border: '1px solid black' }}>{item.commentaire}</td>
                             </tr>
-                             ) : (
-                                <tr key={`outgoing-${index}`} style={{ border: '1px solid black' }}>
-                                    <td colSpan="3" style={{ textAlign: 'center' }}>No data available</td>
-                                 </tr>
-                                )
+                        )
+                        ))}
+
+                        {selectedClassDetails.DirectIncoming.map((item:any, index:any) => (
+                            item && (
+                                <tr key={`incoming-${index}`} onClick={() => onCircleClick(item.target, item.property,'incoming')} style={{ cursor: 'pointer', border: '1px solid black' }}>
+                                    <td style={{ border: '1px solid black' }}>{item.property}</td>
+                                    <td style={{ border: '1px solid black' }}>{item.targetValue}</td>
+                                    <td style={{ border: '1px solid black' }}>{item.commentaire}</td>
+                                </tr>
+                            )
                         ))}
                         <tr>
-                        <td colSpan="3" style={{ border: '1px solid black', textAlign: 'center' }}>
+                        <td colSpan={3} style={{ border: '1px solid black', textAlign: 'center' }}>
                            *********
                         </td>
                         </tr>
                         <tr>
-                        <td colSpan="3" style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid black' }}>Properties from {selectedClassDetails.superclass}</td>
+                        <td colSpan={3} style={{ textAlign: 'center', fontWeight: 'bold', border: '1px solid black' }}>Properties from {selectedClassDetails.superclass}</td>
                         </tr>
                         {/* Inferred Attributes */}
-                        {selectedClassDetails.InferredAttr.map(([propertyName, details], index) => (
+                        {selectedClassDetails.InferredAttr.map(([propertyName, details]: [any, { type: any; comment: any; }], index: any) => (
                             <tr key={index}>
                                 <td style={{ border: '1px solid black' }}>{propertyName}</td>
-                                <td style={{ border: '1px solid black' }}>{details.type || 'Unknown Type'}</td>
-                                <td style={{ border: '1px solid black' }}>{details.comment || 'No comment available'}</td>
+                                <td style={{ border: '1px solid black' }}>{details.type || ''}</td>
+                                <td style={{ border: '1px solid black' }}>{details.comment || ''}</td>
                             </tr>
                             
                         ))}
                         {/* Inferred Relations */}
                         <tr>
                         </tr>
-                        {selectedClassDetails.InferredOutgoing.map((item, index) => (
-                            item ? (
-                            <tr key={`inferred-outgoing-${index}`} onClick={() => onCircleClick(item.target, 'outgoing')} style={{ cursor: 'pointer', border: '1px solid black' }}>
+                        {selectedClassDetails.InferredOutgoing.map((item:any, index:any) => (
+                            item && (
+                            <tr key={`inferred-outgoing-${index}`} onClick={() => onCircleClick(item.target, item.property,'outgoing')} style={{ cursor: 'pointer', border: '1px solid black' }}>
                                 <td style={{ border: '1px solid black' }}>{item.property}</td>
                                 <td style={{ border: '1px solid black' }}>{item.targetValue}</td>
                                 <td style={{ border: '1px solid black' }}>{item.commentaire}</td>
                             </tr>
-                             ) : (
-                                <tr key={`outgoing-${index}`} style={{ border: '1px solid black' }}>
-                                    <td colSpan="3" style={{ textAlign: 'center' }}>No data available</td>
-                                 </tr>
-                                )
+                             )
                         ))}
-                        {selectedClassDetails.InferredIncoming.map((item, index) => (
-                            item ? (
-                            <tr key={`inferred-incoming-${index}`} onClick={() => onCircleClick(item.target, 'incoming')} style={{ cursor: 'pointer', border: '1px solid black' }}>
-                                <td style={{ border: '1px solid black' }}>{item.property|| 'Unknown Type'}</td>
-                                <td style={{ border: '1px solid black' }}>{item.targetValue|| 'Unknown Type'}</td>
-                                <td style={{ border: '1px solid black' }}>{item.commentaire|| 'Unknown Type'}</td>
+                        {selectedClassDetails.InferredIncoming.map((item:any, index:any) => (
+                            item && (
+                            <tr key={`inferred-incoming-${index}`} onClick={() => onCircleClick(item.target, item.property,'incoming')} style={{ cursor: 'pointer', border: '1px solid black' }}>
+                                <td style={{ border: '1px solid black' }}>{item.property|| ''}</td>
+                                <td style={{ border: '1px solid black' }}>{item.targetValue|| ''}</td>
+                                <td style={{ border: '1px solid black' }}>{item.commentaire|| ''}</td>
                             </tr>
-                             ) : (
-                                <tr key={`outgoing-${index}`} style={{ border: '1px solid black' }}>
-                                    <td colSpan="3" style={{ textAlign: 'center' }}>No data available</td>
-                                 </tr>
-                                )
+                             ) 
                         ))}
                        <tr>
-                        <td colSpan="3" style={{ border: '1px solid black', textAlign: 'center' }}>
+                        <td colSpan={3} style={{ border: '1px solid black', textAlign: 'center' }}>
                            *********
                         </td>
                          </tr>

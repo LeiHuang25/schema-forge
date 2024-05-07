@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@clientio/rappid": "file:rappid.tgz",
+    "@joint/core": "^4.0.2",
     "@types/jointjs": "^2.0.0",
-    "bootstrap": "^5.3.3",
     "d3": "^7.8.5",
     "dagre": "latest",
     "graphlib": "latest",
@@ -19,7 +19,7 @@
     "ldkit": "^2.0.0",
     "lodash": "^4.17.21",
     "next": "13.5.4",
-    "rdflib": "^2.2.33",
+    "rdflib": "^2.2.34-1",
     "react": "^18",
     "react-bootstrap": "^2.10.2",
     "react-dom": "^18"
@@ -27,6 +27,7 @@
   "devDependencies": {
     "@types/d3": "^7.4.3",
     "@types/node": "^20",
+    "@types/node-fetch": "^2.6.11",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.16",

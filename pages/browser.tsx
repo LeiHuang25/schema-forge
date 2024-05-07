@@ -1,5 +1,3 @@
-// More details about patterns types are available from the ChatGPT chat: https://chat.openai.com/share/70c7f834-5934-4140-9391-88d3fd2596d4
-
 import React, { useEffect, useState, useRef } from 'react';
 import * as $rdf from 'rdflib';
 import DropdownComponent from '@/components/navigation';
@@ -12,7 +10,7 @@ const baseURI = process.env.NODE_ENV === 'production'
     ? 'https://your-production-domain.com/'   // replace with your production domain
     : 'http://localhost:3000/';
 
-function Browser() {
+const Browser = () => {
   const workspaceRef = useRef(null);
   const [selectedClass, setSelectedClass] = useState<any | undefined>();
   const [store, setStore] = useState<$rdf.IndexedFormula | null>(null);
@@ -45,12 +43,10 @@ function Browser() {
       <div className="separator"></div>
       <div className="central-pane w-4/5 h-full p-8">
         <div id="paper" className="w-full h-full overflow-hidden rounded-lg shadow">
-                  <Diagram selectedClass={selectedClass} store={store} setTableData={setTableData} setStore={setStore}/>
-
+          <Diagram selectedClass={selectedClass} store={store} setTableData={setTableData} setStore={setStore}/>
         </div>
+      </div>
     </div>
-    </div>
-
   );
 }
 

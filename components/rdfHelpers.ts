@@ -1,13 +1,16 @@
 import * as $rdf from 'rdflib';
 
 
-export function getLabelFromURI(store,uri) {
+export function getLabelFromURI(store: any, uri: any) {
   const lastSlashIndex = uri.lastIndexOf('/');
-  return lastSlashIndex !== -1 ? uri.substring(lastSlashIndex + 1) : uri;
+  const lastHashIndex = uri.lastIndexOf('#');
+  const lastIndex = Math.max(lastSlashIndex, lastHashIndex);
+  return lastIndex !== -1 ? uri.substring(lastIndex + 1) : uri;
 }
 
+
 //getSubClasses
-export function getOutgoingConnectedClasses(store, clickedNode) {
+export function getOutgoingConnectedClasses(store:any, clickedNode:any) {
   const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
   const properties = store.match(
     null,
@@ -15,21 +18,21 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
     clickedNode
   );
 
-  return properties.filter((stmt) => {
+  return properties.filter((stmt:any) => {
     const target = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range'));
     const typeStatements = store.match(
       target,
       $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
       classTypeNode
     );
-    return typeStatements.some(typeStmt => typeStmt.object.equals(classTypeNode));
-  }).map((stmt) => {
+    return typeStatements.some((typeStmt :any)=> typeStmt.object.equals(classTypeNode));
+  }).map((stmt:any) => {
     const target = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range'));
     const comment = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#comment'));
     return {
       target: target,
       propertyUri: stmt.subject.uri,
-      comment: comment ? comment.value : 'No comment available'
+      comment: comment ? comment.value : ''
     };
   });
 }
@@ -115,41 +118,45 @@ export function getOutgoingConnectedClasses(store, clickedNode) {
 }
 */
 
-  export function getSubClasses(store, clickedNode) {
+  export function getSubClasses(store:any, clickedNode:any) {
     const subClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
     const subClasses = store.match(
-      clickedNode,
+      null,
       subClassNode,
-      null
+      clickedNode
     );
-
-    return subClasses.map(stmt => ({
-      subClass: stmt.object.value,
+    return subClasses.map((stmt:any) => ({
+      subClass: stmt.subject.value,
       propertyUri: stmt.predicate.uri
     }));
 }
 
-export function getSuperClasses(store, clickedNode) {
+export function getSuperClasses(store:any, clickedNode:any) {
   const superClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
-  const superClasses = store.match(
-    null,
+  const superClass = store.match(
+    clickedNode,
     superClassNode,
-    clickedNode
+    null
   );
 
-  return superClasses.map(stmt => ({
-    superClass: stmt.subject.value,
-    propertyUri: stmt.predicate.uri
-  }));
+  if (superClass.length > 0) {
+    return {
+      superClass: superClass[0].object.value,
+      propertyUri: superClass[0].predicate.uri
+    };
+  } else {
+    return null; 
+  }
 }
-export function getAllSuperClasses(store, clickedNode) {
+
+export function getAllSuperClasses(store:any, clickedNode:any) {
   const superClassNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf");
   const superClasses = new Set();
 
-  function findSuperClasses(node) {
-      const superClassTriples = store.match(null, superClassNode, node);
-      superClassTriples.forEach(triple => {
-          const superClass = triple.subject;
+  function findSuperClasses(node:any) {
+      const superClassTriples = store.match(node, superClassNode, null);
+      superClassTriples.forEach((triple:any) => {
+          const superClass = triple.object;
           if (!superClass.equals(clickedNode) && !superClasses.has(superClass.value)) {
               const superClassDetail = {
                   superClass: superClass.value,
@@ -166,28 +173,28 @@ export function getAllSuperClasses(store, clickedNode) {
 }
 
 
-export function getIncomingConnectedClasses(store, clickedNode) {
+export function getIncomingConnectedClasses(store:any, clickedNode:any) {
     const classTypeNode = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
     const properties = store.match(
       null,
       $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range'),
       clickedNode
     );
-    return properties.filter((stmt) => {
+    return properties.filter((stmt:any) => {
       const target = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain'));
       const typeStatements = store.match(
         target,
         $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
         null
       );
-      return typeStatements.some(typeStmt => typeStmt.object.equals(classTypeNode));
-    }).map((stmt) => {
+      return typeStatements.some((typeStmt:any) => typeStmt.object.equals(classTypeNode));
+    }).map((stmt:any) => {
       const target = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain'));
       const comment = store.any(stmt.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#comment'));
       return {
         target: target,
         propertyUri: stmt.subject.uri,
-        comment: comment ? comment.value : 'No comment available'
+        comment: comment ? comment.value : ''
       };
 
     });
@@ -196,14 +203,14 @@ export function getIncomingConnectedClasses(store, clickedNode) {
 
 
 
-  export function getInferredIncoming(store, clickedNode) {
+  export function getInferredIncoming(store:any, clickedNode:any) {
     const inferredIncoming = new Set();
 
     const superClasses = getAllSuperClasses(store, clickedNode);
 
-    superClasses.forEach(superClass => {
+    superClasses.forEach((superClass:any) => {
         const directIncoming = getIncomingConnectedClasses(store, $rdf.namedNode(superClass.superClass));
-        directIncoming.forEach(incoming => {
+        directIncoming.forEach((incoming:any) => {
             inferredIncoming.add(incoming);
         });
     });
@@ -212,14 +219,14 @@ export function getIncomingConnectedClasses(store, clickedNode) {
 }
 
 
-export function getInferredOutgoing(store, clickedNode) {
+export function getInferredOutgoing(store:any, clickedNode:any) {
   const inferredOutgoing = new Set();
 
   const superClasses = getAllSuperClasses(store, clickedNode);
 
-  superClasses.forEach(superClass => {
+  superClasses.forEach((superClass:any) => {
       const directOutgoing = getOutgoingConnectedClasses(store, $rdf.namedNode(superClass.superClass));
-      directOutgoing.forEach(Outgoing => {
+      directOutgoing.forEach((Outgoing:any) => {
           inferredOutgoing.add(Outgoing);
       });
   });
@@ -246,24 +253,25 @@ export function getInferredOutgoing(store, clickedNode) {
     return directProperties;
   }
 
-  export function getInferredObjectProperties(store, clickedNode) {
-    const InferredSubClass = getInferredSubclasses(store, clickedNode);
-    const InferredRelation = getInferredRelation(store, clickedNode);
-    const allInferredNodes = [...InferredSubClass, ...InferredRelation];
-    const combinedProperties = {};
-  
-    // 遍历所有推断出的节点，收集它们的数据属性
-    allInferredNodes.forEach(node => {
+  interface CombinedProperties {
+    [key: string]: any; 
+}
+
+export function getInferredObjectProperties(store: any, clickedNode: any): CombinedProperties {
+    const list = getAllSuperClasses(store, clickedNode);
+    const combinedProperties: CombinedProperties = {}; 
+
+    list.forEach((node: any) => {
         const classNode = $rdf.namedNode(node);
         const properties = getDirectProperties(store, classNode);
-  
-        // 将当前节点的数据属性合并到总的属性对象中
+
         Object.keys(properties).forEach(propertyKey => {
             combinedProperties[propertyKey] = properties[propertyKey];
         });
     });
+
     return combinedProperties;
-  }
+}
 
   // this function returns key, value for each data property that has the node as domain and a literal as range
   export function getDataProperties(store: $rdf.IndexedFormula, node: $rdf.NamedNode): { [key: string]: { type: string, comment: string } } {
@@ -273,20 +281,27 @@ export function getInferredOutgoing(store, clickedNode) {
     const triples = store.match(null, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#domain'), node);
     triples.forEach(st => {
         const propertyRange = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#range'), null);
-        const isXMLSchemaType = propertyRange.some(rangeStatement => rangeStatement.object.uri.startsWith("http://www.w3.org/2001/XMLSchema"));
-
+        const isXMLSchemaType = propertyRange.some(rangeStatement => {
+          const object = rangeStatement.object as $rdf.NamedNode;
+          return object.uri.startsWith("http://www.w3.org/2001/XMLSchema");
+      });
+      
         const label = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#label'), null).map(l => l.object.value);
         const comment = store.match(st.subject, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#comment'), null).map(c => c.object.value);
 
         if (propertyRange.length > 0 && propertyRange[0].object && isXMLSchemaType) {
-            const propName = label.length > 0 ? label[0] : st.subject.uri.split('#').pop();
-            const propType = propertyRange[0].object.uri.split('#').pop();
-            const propComment = comment.length > 0 ? comment[0] : 'No comment provided';
+          const propName = label.length > 0 ? label[0] : (st.subject.value.split('#').pop() ?? "");
+          const propType = (propertyRange[0].object as $rdf.NamedNode).uri.split('#').pop();          
+            const propComment = comment.length > 0 ? comment[0] : '';
 
-            dataProperties[propName] = {
-                type: propType,
-                comment: propComment
-            };
+            if (propName !== undefined&&propType!==undefined) {
+              dataProperties[propName] = {
+                  type: propType,
+                  comment: propComment
+              };
+          }
+          
+          
         }
     });
 
@@ -295,11 +310,10 @@ export function getInferredOutgoing(store, clickedNode) {
 
 
 
-export function getInferredDataProperties(store, clickedNode) {
+export function getInferredDataProperties(store:any, clickedNode:any) {
   const list = getAllSuperClasses(store, clickedNode);
-  const combinedProperties = {};
-
-  list.forEach(item => {
+  const combinedProperties: { [key: string]: { type: any; comment: any } } = {};
+  list.forEach((item :any)=> {
       if (item && item.superClass) {
           const classNode = $rdf.namedNode(item.superClass);  // Ensuring that superClass is a valid RDF Node
           const properties = getDataProperties(store, classNode);
@@ -321,18 +335,16 @@ export function getInferredDataProperties(store, clickedNode) {
           });
       }
   });
-  console.log(combinedProperties)
-
   return combinedProperties;
 }
 
 
-export function createClass(store, classLabel,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore) {
+export function createClass(store:any, classLabel:any,superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore:any) {
     const classNode = $rdf.namedNode(classLabel);
     if (superClassUri) {
         const superClassNode = $rdf.namedNode(superClassUri);
         console.log(superClassNode)
-        store.add(superClassNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), classNode);
+        store.add(classNode, $rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), superClassNode);
     }
 
     console.log("Updated store after adding new class and relationships:", store);
@@ -344,7 +356,7 @@ export function createClass(store, classLabel,superClassUri = 'http://www.w3.org
       //console.log(triple.subject.value, triple.predicate.value, triple.object.value);
  // });
 }
-export function createIncomingRelation(store, classLabel, relationUri, superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore, comment) {
+export function createIncomingRelation(store:any, classLabel:any, relationUri:any, superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore:any, comment:any) {
     console.log("Creating new class:", classLabel, relationUri, superClassUri);
 
     const classNode = $rdf.namedNode(classLabel);
@@ -381,11 +393,12 @@ export function createIncomingRelation(store, classLabel, relationUri, superClas
     //});
 }
 
-export function createOutgoingRelation(store, classLabel, relationUri, superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore, comment) {
+export function createOutgoingRelation(store:any, classLabel:any, relationUri:any, superClassUri = 'http://www.w3.org/2000/01/rdf-schema#Resource', setStore:any, comment:any) {
     console.log("Creating new class:", classLabel, relationUri, superClassUri);
     
     const classNode = $rdf.namedNode(classLabel);
     const relationNode = $rdf.namedNode(relationUri);
+    console.log(comment)
     const commentNode = $rdf.literal(comment);  
     const lastSlashIndex = classLabel.lastIndexOf('/');
     
@@ -415,7 +428,7 @@ export function createOutgoingRelation(store, classLabel, relationUri, superClas
     // });
 }
 
-export function createDataProperty(store, classUri, label, comment, domainUri, rangeUri) {
+export function createDataProperty(store:any, classUri:any, label:any, comment:any, domainUri:any, rangeUri:any) {
   const classNode = $rdf.namedNode(classUri);
   const typePred = $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
   const propertyType = $rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#Property');
@@ -493,12 +506,12 @@ export const dataTypes = [
   { label: 'GDay', value: 'http://www.w3.org/2001/XMLSchema#gDay' },
   { label: 'GMonth', value: 'http://www.w3.org/2001/XMLSchema#gMonth' }
 ];
-export function getAllClasses(store) {
+export function getAllClasses(store:any) {
   const RDF_TYPE = $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
   const RDFS_CLASS = $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#Class");
 
   const classStatements = store.match(null, RDF_TYPE, RDFS_CLASS);
-  const classURIs = classStatements.map(stmt => stmt.subject.value); 
+  const classURIs = classStatements.map((stmt :any)=> stmt.subject.value); 
   classURIs.unshift("Choose Class");
   return classURIs;
 }

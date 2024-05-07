@@ -1,11 +1,6 @@
 import * as d3 from 'd3';
 import * as $rdf from 'rdflib';
 import * as rdfHelpers from '@/components/rdfHelpers';
-import { start } from 'repl';
-import { has } from 'lodash';
-import { Lancelot } from 'next/font/google';
-import { comment } from 'postcss';
-import { startTransition } from 'react';
 
 // define the type of direction
 type Direction = 'incoming' | 'outgoing' | 'subclass';
@@ -49,8 +44,82 @@ export const createDiskAndLink = (
     const lastSlashIndex = property.lastIndexOf('/');
     const propertyName = lastSlashIndex !== -1 ? property.substring(lastSlashIndex + 1) : property;
 
+const calculateDecalage = function(x1:any, y1:any, x2:any, y2:any, r:any) {     
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dr = Math.sqrt(dx * dx + dy * dy);
+  const sin = dy/dr;
+  const cos = dx/dr;
+
+  const x = (r * cos);
+  const y = (r * sin);
+  return [x, y];
+}
+
+
+
+
+
+const updateMainClassRelatedLines = function(newX:any, newY:any, nodeId:any) {    
+    d3.selectAll('.link').each(function() {
+    const line = d3.select(this);
+    const startId = line.attr('startId');
+    const endId = line.attr('nodeId');
+    const markerStart = line.attr('marker-start');
+    const markerEnd = line.attr('marker-end');
+
+    let sourceX, sourceY, targetX, targetY;
+
+    if (startId === nodeId) {
+        // if the circle dragging is the start of the line
+        const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
+        sourceX = newX;
+        sourceY = newY;
+        targetX = +otherCircle.attr('cx');
+        targetY = +otherCircle.attr('cy');
+    } else if (endId === nodeId) {
+        // if the circle dragging is the end of the line
+        const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
+        sourceX = +otherCircle.attr('cx');
+        sourceY = +otherCircle.attr('cy');
+        targetX = newX;
+        targetY = newY;
+    } else {
+        // neither start or end,then dont update
+        return;
+    }
+
+    // update the line
+    const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
+    if(markerEnd){
+    line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`)}
+    else if(markerStart){
+      line.attr('d', `M${targetX-intersection[0]},${targetY-intersection[1]} L${sourceX+intersection[0]},${sourceY+intersection[1]}`)
+    }
+
+    //update the text of the line
+    const midX = (sourceX + targetX) / 2;
+    const midY = (sourceY + targetY) / 2;
+    d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
+      .attr('x', midX)
+      .attr('y', midY);
+});
+}
+
+  
+// Update the position of the connection line
+const updateLink = function(startX:any, startY:any, endX:any, endY:any, line:any, linkText:any) {
+const intersection = calculateDecalage(startX, startY, endX, endY, 50);
+const linkPath = `M${startX+ intersection[0]},${startY+ intersection[1]} L${endX- intersection[0]},${endY-intersection[1]}`;
+line.attr('d', linkPath);
+// Update the position of the text on the connecting line
+const midX = (startX + endX) / 2;
+const midY = (startY + endY) / 2;
+linkText.attr('x', midX).attr('y', midY);
+}
+
     // set the direction
-    let link;
+    let link = null;
     if (direction === 'outgoing') {
         link = svg.append('path').attr('marker-end', 'url(#arrowhead-outgoing)');
     } else if (direction === 'incoming') {
@@ -58,7 +127,7 @@ export const createDiskAndLink = (
     } else if (direction ==='subclass') {
       link = svg.append('path').attr('marker-start', 'url(#arrowhead-subclass)');
     }
-
+    if (link) {
     // creat the link and set the position of the class as the end
     const relatedCircle = svg.select(`circle[nodeId="${nodeId}"]`);
     const targetX = +relatedCircle.attr('cx');
@@ -77,11 +146,11 @@ export const createDiskAndLink = (
       link   .attr('nodeId', classId)
       .attr('startId', nodeId);
   } else if (direction ==='subclass') {
-    link   .attr('nodeId', classId)
+    link .attr('nodeId', classId)
     .attr('startId', nodeId);
   }
   console.log(`Attributes set: nodeId=${link.attr('nodeId')}, startId=${link.attr('startId')}`);
-
+    
 // create the text of the link
     const text = svg.append('text')
       .attr('class', 'link-text')
@@ -102,7 +171,7 @@ export const createDiskAndLink = (
     } else if (direction ==='subclass') {
       text   .attr('nodeId', classId)
       .attr('startId', nodeId);
-    }
+    }}
 
       // Create arrow element
   svg
@@ -154,38 +223,180 @@ export const createDiskAndLink = (
     .attr('d', 'M10,5L0,0L10,-5') // Define the path of the arrow
     .style('fill', 'yellow'); // Set arrow color
 
+        // define the drag event
+        const dragged = function(this:any,event:any) {
+          const newX = event.x;
+          const newY = event.y;
+          const nodeId = d3.select(this).attr('nodeId');  // This node is being dragged
+      
+          // Update the dragged circle's position
+          d3.select(`circle[nodeId="${nodeId}"]`).attr('cx', newX).attr('cy', newY);
+          d3.select(`text[nodeId="${nodeId}"]`).attr('x', newX).attr('y', newY);
+          
+          // Update all related elements' positions
+          svg.selectAll('.link').each(function() {
+              const line = d3.select(this);
+              const startId = line.attr('startId');
+              const endId = line.attr('nodeId');
+      
+              // This will determine the correct end to update based on the direction of the link
+              if (startId === nodeId || endId === nodeId) {
+                  const otherNodeId = startId === nodeId ? endId : startId;
+                  const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
+                  const otherCircleX = +otherCircle.attr('cx');
+                  const otherCircleY = +otherCircle.attr('cy');
+                  const markerStart = line.attr('marker-start');
+                  const markerEnd = line.attr('marker-end');
+      
+                  if (markerEnd) {
+                    if (startId === nodeId) {
+                      line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
+                    } else {
+                      line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
+                    }
+                  } else if (markerStart) {
+                    if (startId === nodeId) {
+                      line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
+                    } else {
+                      line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
+                    }
+                  }
+      
+                  const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+                  line.style('opacity', distance < 100 ? 0 : 1);
+              }
+          });
+      
+          svg.selectAll('.link-text').each(function() {
+              const text = d3.select(this);
+              const startId = text.attr('startId');
+              const endId = text.attr('nodeId');
+      
+              if (startId === nodeId || endId === nodeId) {
+                  const otherNodeId = startId === nodeId ? endId : startId;
+                  const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
+                  const otherCircleX = +otherCircle.attr('cx');
+                  const otherCircleY = +otherCircle.attr('cy');
+      
+                  const midX = (newX + otherCircleX) / 2;
+                  const midY = (newY + otherCircleY) / 2;
+                  text.attr('x', midX).attr('y', midY);
+      
+                  const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+                  text.style('opacity', distance < 100 ? 0 : 1);
+              }
+          });
+      
+          // Call updateMainClassRelatedLines to handle specific additional updates
+          updateMainClassRelatedLines(newX, newY, nodeId);
+      }
+
     // add the drag event to the circle and the text
-    relatedDisk.call(d3.drag().on('drag', dragged));
-    labelText.call(d3.drag().on('drag', dragged));
+    relatedDisk.call((d3.drag().on('drag', dragged)as any));
+    labelText.call((d3.drag().on('drag', dragged)as any));
+
+    d3.selectAll('path.link').each(function() {
+      var currentPath = d3.select(this);
+      var startId = currentPath.attr('startId');
+      var nodeId = currentPath.attr('nodeId');
+    
+    
+      var reversePath = d3.selectAll('path.link:not([style="visibility: hidden;"])').filter(function() {
+        var otherPath = d3.select(this);
+        return otherPath.attr('startId') === nodeId && otherPath.attr('nodeId') === startId;
+    });
+    
+    if (reversePath.size() > 0) {
+      if (currentPath.attr('marker-end') && reversePath.attr('marker-start')) {
+          // Hide the reverse path and its related text
+          reversePath.style('visibility', 'hidden');
+          hideRelatedText(reversePath);
+  
+          // Show the current path and its related text
+          currentPath.style('visibility', 'visible');
+          showRelatedText(currentPath);
+      } else if ((currentPath.attr('marker-end') && reversePath.attr('marker-end')) || (currentPath.attr('marker-start') && reversePath.attr('marker-start'))) {
+          // Hide the current path and its related text
+          currentPath.style('visibility', 'hidden');
+          hideRelatedText(currentPath);
+  
+          // Show the reverse path and its related text
+          reversePath.style('visibility', 'visible');
+          showRelatedText(reversePath);
+      }
+  }
+  
+  function hideRelatedText(path:any) {
+      var startId = path.attr('startId');
+      var nodeId = path.attr('nodeId');
+  
+      d3.selectAll('text.link-text').filter(function() {
+          var text:any = d3.select(this);
+          return (text.attr('nodeId') === nodeId && text.attr('startId') === startId);
+      }).style('visibility', 'hidden');
+  }
+  
+  function showRelatedText(path:any) {
+    var startId = path.attr('startId');
+    var nodeId = path.attr('nodeId');
+
+    d3.selectAll('text.link-text').filter(function() {
+        var text:any = d3.select(this);
+        return (text.attr('nodeId') === nodeId && text.attr('startId') === startId) || (text.attr('nodeId') === startId && text.attr('startId') === nodeId);
+    })
+    .each(function() {
+        var text = d3.select(this);
+        var existingText = text.text();
+        if (!existingText.endsWith('......')) {
+            text.text(existingText + '......');
+        }
+    })
+    ;
+    d3.selectAll('text.link-text').filter(function() {
+      var text:any = d3.select(this);
+      return (text.attr('nodeId') === nodeId && text.attr('startId') === startId);
+  }).style('visibility', 'visible')
+}
+
+    
+    
+    });
+    
 
     d3.selectAll('text.link-text').on('click', function(event) {
-      event.stopPropagation();  // 阻止事件冒泡
+      event.stopPropagation();  
       const clickedText = d3.select(this);
       const startId = clickedText.attr('startId');
       const nodeId = clickedText.attr('nodeId');
     
-      // 寻找所有与当前点击的 text 元素 startId 或 nodeId 相匹配的重叠 text 元素
       const relatedElements = d3.selectAll('text.link-text, path.link').filter(function() {
         const element = d3.select(this);
+        const clickedNode = clickedText.node();
         return ((element.attr('startId') === startId && element.attr('nodeId') === nodeId) ||
                 (element.attr('startId') === nodeId && element.attr('nodeId') === startId)) &&
-                element !== clickedText.node(); // 排除当前点击的文本
+                element.node() !== clickedNode;; 
       });
     
-      // 隐藏其他相关元素
       relatedElements.each(function() {
         const element = d3.select(this);
-        if (element.node().tagName === 'text') {
-          element.style('visibility', 'hidden'); // 隐藏相关文本
-        } else if (element.node().tagName === 'path') {
-          element.style('visibility', 'hidden'); // 隐藏相关直线
+        const node = element.node();
+        if (node instanceof Element && node.tagName === 'text') {
+            element.style('visibility', 'hidden'); 
+        } else if (node instanceof Element && node.tagName === 'path') {
+            element.style('visibility', 'hidden'); 
         }
-      });
+    });
     
-      // 显示当前点击的文本
       clickedText.style('visibility', 'visible');
+      var relatedstart = clickedText.attr('startId');
+      var relatedend =clickedText.attr('nodeId');
+      var relatedLine = d3.select('path.link[startId="' + relatedstart + '"][nodeId="' + relatedend + '"]');
+      relatedLine.style('visibility', 'visible');
+
+
+
     
-      // 创建选择列表
+
       const menu = d3.select('body').append('div')
           .attr('class', 'custom-context-menu')
           .style('position', 'absolute')
@@ -196,212 +407,46 @@ export const createDiskAndLink = (
           .style('border-radius', '5px')
           .style('box-shadow', '0 2px 5px rgba(0,0,0,0.2)');
     
-      // 添加文本选项
-      const relatedTexts = relatedElements.filter(function() {
-        return d3.select(this).node().tagName === 'text';
-      });
+          const relatedTexts = relatedElements.filter(function() {
+            const node = d3.select(this).node();
+            return node instanceof Element && node.tagName === 'text';
+        });
       relatedTexts.each(function() {
         const text = d3.select(this);
         const newText = text.text();
+        const newTextWithoutSuffix = newText.replace(/\.\.\.\.\.\.$/, ''); 
         menu.append('div')
-            .text(newText)
+            .text(newTextWithoutSuffix) 
             .style('cursor', 'pointer')
             .on('click', function() {
-              clickedText.style('visibility', 'hidden'); // 隐藏当前文本
-              var startId = text.attr('startId');
-              var nodeId =text.attr('nodeId');
-              var relatedLine = d3.select('path.link[startId="' + startId + '"][nodeId="' + nodeId + '"]');
-              text.style('visibility', 'visible'); // 显示被选中的文本
-              relatedLine.style('visibility', 'visible');
-              menu.remove(); // 关闭菜单
+                clickedText.style('visibility', 'hidden');
+                var relatedstart = clickedText.attr('startId');
+                var relatedend = clickedText.attr('nodeId');
+                var relatedLine = d3.select('path.link[startId="' + relatedstart + '"][nodeId="' + relatedend + '"]');
+                relatedLine.style('visibility', 'hidden');
+                var startId = text.attr('startId');
+                var nodeId = text.attr('nodeId');
+                var relatedLine = d3.select('path.link[startId="' + startId + '"][nodeId="' + nodeId + '"]');
+                text.style('visibility', 'visible'); 
+                relatedLine.style('visibility', 'visible');
+                menu.remove();
             });
-      });
+    });
     
-      // 点击其他位置关闭菜单
+    
       d3.select('body').on('click.menu', function() {
         menu.remove();
-        d3.select('body').on('click.menu', null); // 移除此事件监听
+        d3.select('body').on('click.menu', null); 
       });
     });
     
     
 
-// 假设你已经创建了路径元素并且它们包含了正确的属性
-d3.selectAll('path.link').each(function() {
-  var currentPath = d3.select(this);
-  var startId = currentPath.attr('startId');
-  var nodeId = currentPath.attr('nodeId');
-
-
-  // 寻找反向路径
-  var reversePath = d3.selectAll('path.link:not([style="visibility: hidden;"])').filter(function() {
-    var otherPath = d3.select(this);
-    return otherPath.attr('startId') === nodeId && otherPath.attr('nodeId') === startId;
-});
-
-  if (reversePath.size() > 0) {
-    // 存在双向关系
-    // 判断并处理箭头
-    if (currentPath.attr('marker-end') && reversePath.attr('marker-start')) {
-      reversePath.style('visibility', 'hidden'); // 隐藏反向箭头的路径
-
-      // 获取反向路径的 startId 和 nodeId
-      var reverseStartId = reversePath.attr('startId');
-      var reverseNodeId = reversePath.attr('nodeId');
-  
-      // 隐藏与当前路径和反向路径相对应的文本
-      d3.selectAll('text.link-text').filter(function() {
-          var text = d3.select(this);
-          return  (text.attr('nodeId') === reverseNodeId && text.attr('startId') === reverseStartId);
-      }).style('visibility', 'hidden');
-  }
-  
-    
-  }
-});
 
 
   
 
-    function calculateDecalage(x1, y1, x2, y2, r) {
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const dr = Math.sqrt(dx * dx + dy * dy);
-      const sin = dy/dr;
-      const cos = dx/dr;
-  
-      const x = (r * cos);
-      const y = (r * sin);
-      return [x, y];
-    }
-
-
-    // define the drag event
-    function dragged(event) {
-      const newX = event.x;
-      const newY = event.y;
-      const nodeId = d3.select(this).attr('nodeId');  // This node is being dragged
-  
-      // Update the dragged circle's position
-      d3.select(`circle[nodeId="${nodeId}"]`).attr('cx', newX).attr('cy', newY);
-      d3.select(`text[nodeId="${nodeId}"]`).attr('x', newX).attr('y', newY);
-      
-      // Update all related elements' positions
-      svg.selectAll('.link').each(function() {
-          const line = d3.select(this);
-          const startId = line.attr('startId');
-          const endId = line.attr('nodeId');
-  
-          // This will determine the correct end to update based on the direction of the link
-          if (startId === nodeId || endId === nodeId) {
-              const otherNodeId = startId === nodeId ? endId : startId;
-              const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
-              const otherCircleX = +otherCircle.attr('cx');
-              const otherCircleY = +otherCircle.attr('cy');
-              const markerStart = line.attr('marker-start');
-              const markerEnd = line.attr('marker-end');
-  
-              if (markerEnd) {
-                if (startId === nodeId) {
-                  line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
-                } else {
-                  line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
-                }
-              } else if (markerStart) {
-                if (startId === nodeId) {
-                  line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
-                } else {
-                  line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
-                }
-              }
-  
-              const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
-              line.style('opacity', distance < 100 ? 0 : 1);
-          }
-      });
-  
-      svg.selectAll('.link-text').each(function() {
-          const text = d3.select(this);
-          const startId = text.attr('startId');
-          const endId = text.attr('nodeId');
-  
-          if (startId === nodeId || endId === nodeId) {
-              const otherNodeId = startId === nodeId ? endId : startId;
-              const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
-              const otherCircleX = +otherCircle.attr('cx');
-              const otherCircleY = +otherCircle.attr('cy');
-  
-              const midX = (newX + otherCircleX) / 2;
-              const midY = (newY + otherCircleY) / 2;
-              text.attr('x', midX).attr('y', midY);
-  
-              const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
-              text.style('opacity', distance < 100 ? 0 : 1);
-          }
-      });
-  
-      // Call updateMainClassRelatedLines to handle specific additional updates
-      updateMainClassRelatedLines(newX, newY, nodeId);
-  }
-  
-  
-  function updateMainClassRelatedLines(newX, newY, nodeId) {
-    d3.selectAll('.link').each(function() {
-        const line = d3.select(this);
-        const startId = line.attr('startId');
-        const endId = line.attr('nodeId');
-        const markerStart = line.attr('marker-start');
-        const markerEnd = line.attr('marker-end');
-
-        let sourceX, sourceY, targetX, targetY;
-
-        if (startId === nodeId) {
-            // if the circle dragging is the start of the line
-            const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
-            sourceX = newX;
-            sourceY = newY;
-            targetX = +otherCircle.attr('cx');
-            targetY = +otherCircle.attr('cy');
-        } else if (endId === nodeId) {
-            // if the circle dragging is the end of the line
-            const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
-            sourceX = +otherCircle.attr('cx');
-            sourceY = +otherCircle.attr('cy');
-            targetX = newX;
-            targetY = newY;
-        } else {
-            // neither start or end,then dont update
-            return;
-        }
-
-        // update the line
-        const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
-        if(markerEnd){
-        line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`)}
-        else if(markerStart){
-          line.attr('d', `M${targetX-intersection[0]},${targetY-intersection[1]} L${sourceX+intersection[0]},${sourceY+intersection[1]}`)
-        }
-
-        //update the text of the line
-        const midX = (sourceX + targetX) / 2;
-        const midY = (sourceY + targetY) / 2;
-        d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
-          .attr('x', midX)
-          .attr('y', midY);
-    });
 }
-    
-      
-  // Update the position of the connection line
-  function updateLink(startX, startY, endX, endY, line,linkText) {
-    const intersection = calculateDecalage(startX, startY, endX, endY, 50);
-    const linkPath = `M${startX+ intersection[0]},${startY+ intersection[1]} L${endX- intersection[0]},${endY-intersection[1]}`;
-    line.attr('d', linkPath);
-    // Update the position of the text on the connecting line
-    const midX = (startX + endX) / 2;
-    const midY = (startY + endY) / 2;
-    linkText.attr('x', midX).attr('y', midY);
-  }}
 
   
 
@@ -417,6 +462,151 @@ d3.selectAll('path.link').each(function() {
   const diskY =+select.attr('cy')+120*count;
   const diskRadius = 50;
 
+      // Fonction pour calculer l'intersection entre la ligne de liaison et le cercle
+      const calculateDecalage = function(x1:any, y1:any, x2:any, y2:any, r:any) {    const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dr = Math.sqrt(dx * dx + dy * dy);
+        const sin = dy/dr;
+        const cos = dx/dr;
+    
+        const x = (r * cos);
+        const y = (r * sin);
+        return [x, y];
+      }
+    
+      // Drag event handler function
+      const dragged = function(this:any,event:any) {
+          const newX = event.x;
+          const newY = event.y;
+          const nodeId = d3.select(this).attr('nodeId');  // This node is being dragged
+      
+          // Update the dragged circle's position
+          d3.select(`circle[nodeId="${nodeId}"]`).attr('cx', newX).attr('cy', newY);
+          d3.select(`text[nodeId="${nodeId}"]`).attr('x', newX).attr('y', newY);
+          
+          // Update all related elements' positions
+          svg.selectAll('.link').each(function() {
+              const line = d3.select(this);
+              const startId = line.attr('startId');
+              const endId = line.attr('nodeId');
+      
+              // This will determine the correct end to update based on the direction of the link
+              if (startId === nodeId || endId === nodeId) {
+                  const otherNodeId = startId === nodeId ? endId : startId;
+                  const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
+                  const otherCircleX = +otherCircle.attr('cx');
+                  const otherCircleY = +otherCircle.attr('cy');
+                  const markerStart = line.attr('marker-start');
+                  const markerEnd = line.attr('marker-end');
+      
+                  if (markerEnd) {
+                    if (startId === nodeId) {
+                      line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
+                    } else {
+                      line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
+                    }
+                  } else if (markerStart) {
+                    if (startId === nodeId) {
+                      line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
+                    } else {
+                      line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
+                    }
+                  }
+      
+                  const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+                  line.style('opacity', distance < 100 ? 0 : 1);
+              }
+          });
+      
+          svg.selectAll('.link-text').each(function() {
+              const text = d3.select(this);
+              const startId = text.attr('startId');
+              const endId = text.attr('nodeId');
+      
+              if (startId === nodeId || endId === nodeId) {
+                  const otherNodeId = startId === nodeId ? endId : startId;
+                  const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
+                  const otherCircleX = +otherCircle.attr('cx');
+                  const otherCircleY = +otherCircle.attr('cy');
+      
+                  const midX = (newX + otherCircleX) / 2;
+                  const midY = (newY + otherCircleY) / 2;
+                  text.attr('x', midX).attr('y', midY);
+      
+                  const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
+                  text.style('opacity', distance < 100 ? 0 : 1);
+              }
+          });
+      
+          // Call updateMainClassRelatedLines to handle specific additional updates
+          updateMainClassRelatedLines(newX, newY, nodeId);
+      }
+      
+      
+      const updateMainClassRelatedLines = function(newX:any, newY:any, nodeId:any) {   
+         d3.selectAll('.link').each(function() {
+            const line = d3.select(this);
+            const startId = line.attr('startId');
+            const endId = line.attr('nodeId');
+            const markerStart = line.attr('marker-start');
+            const markerEnd = line.attr('marker-end');
+    
+            let sourceX, sourceY, targetX, targetY;
+    
+            if (startId === nodeId) {
+                // if the circle dragging is the start of the line
+                const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
+                sourceX = newX;
+                sourceY = newY;
+                targetX = +otherCircle.attr('cx');
+                targetY = +otherCircle.attr('cy');
+            } else if (endId === nodeId) {
+                // if the circle dragging is the end of the line
+                const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
+                sourceX = +otherCircle.attr('cx');
+                sourceY = +otherCircle.attr('cy');
+                targetX = newX;
+                targetY = newY;
+            } else {
+                // neither start or end,then dont update
+                return;
+            }
+    
+            // update the line
+            const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
+            if(markerEnd){
+            line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`)}
+            else if(markerStart){
+              line.attr('d', `M${targetX-intersection[0]},${targetY-intersection[1]} L${sourceX+intersection[0]},${sourceY+intersection[1]}`)
+            }
+    
+            //update the text of the line
+            const midX = (sourceX + targetX) / 2;
+            const midY = (sourceY + targetY) / 2;
+            d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
+              .attr('x', midX)
+              .attr('y', midY);
+        });
+    }
+    
+      // Update the position of the connection line
+      const updateLink = function(sourceX:any,sourceY:any,Intersection:any) {
+        const targetX = +relatedDisk.select('circle').attr('cx');
+        const targetY = +relatedDisk.select('circle').attr('cy');
+        const linkPath = `M${sourceX + Intersection[0]},${sourceY + Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
+        link.attr('d', linkPath);
+    
+        // Update the position of the text on the connecting line
+        const midX = (sourceX + targetX) / 2;
+        const midY = (sourceY + targetY) / 2;
+        text.attr('x', midX).attr('y', midY);
+        
+        /*
+        const markerEnd = 'url(#arrowhead-subclass)';
+        link.attr('marker-end', markerEnd); */
+      }
+  
+
 
   // Create new circle
   const relatedDisk = svg.append('g').attr('class', 'disk-and-label');
@@ -431,7 +621,7 @@ d3.selectAll('path.link').each(function() {
     .style('stroke-width', 2)
     .attr('nodeId', nodeId)
     // Add drag and drop functionality
-    .call(d3.drag().on('drag', dragged))
+    .call((d3.drag().on('drag', dragged)as any))
     .on('click', function () {
       const isSelected = d3.select(this).classed('selected');
       // If already selected, uncheck the state, otherwise set to the selected state
@@ -455,8 +645,9 @@ d3.selectAll('path.link').each(function() {
     .classed('class-circle', true)
     // right click event
     .on('contextmenu', (event) => displayContextMenu(event, newNode, store)); // Change classId to newNode and pass it into store
+    
 
-    const getClassDetails = (selectedClass, store) => {
+    const getClassDetails = (selectedClass:any, store:any) => {
       const classNode = $rdf.namedNode(selectedClass);
       const tableData=rdfHelpers.getDirectProperties(store, classNode);
       const tableData1=rdfHelpers.getDataProperties(store, classNode);
@@ -489,14 +680,17 @@ d3.selectAll('path.link').each(function() {
       const InferredOutgoing=rdfHelpers.getInferredOutgoing(store,classNode);
       
      
-      const superlist = superclass.map(superclass => superclass.superClass);
-      const supername = superlist.length > 0 ? superlist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+      const superlist = superclass?superclass.superClass: "None";
+      const Index = superlist.lastIndexOf('/');
+      const supername = Index !== -1 ? superlist.substring(Index + 1) : superlist;
+      console.log(supername)
+      
 
-      const sublist = subclass.map(subclass => subclass.subClass);
-      const subname = sublist.length > 0 ? sublist.map(item => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
+      const sublist = subclass.map((subclass:any) => subclass.subClass);
+      const subname = sublist.length > 0 ? sublist.map((item:any) => item.substring(item.lastIndexOf('/') + 1)) : ["None"];
 
      
-      const DirectOutgoing = Outgoing.map(item => {
+      const DirectOutgoing = Outgoing.map((item:any) => {
           if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -507,7 +701,7 @@ d3.selectAll('path.link').each(function() {
               return null;
           }
       });
-      const DirectIncoming = Incoming.map(item => {
+      const DirectIncoming = Incoming.map((item:any) => {
           if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -519,7 +713,7 @@ d3.selectAll('path.link').each(function() {
           }
       });
 
-      const InferredO = InferredOutgoing.map(item => {
+      const InferredO = InferredOutgoing.map((item:any) => {
           if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -530,7 +724,7 @@ d3.selectAll('path.link').each(function() {
               return null;
           }
       }).filter(item => item !== null);
-      const InferredI= InferredIncoming.map(item => {
+      const InferredI= InferredIncoming.map((item:any) => {
           if (item.target&&item.propertyUri) {
               const property = item.propertyUri.substring(item.propertyUri.lastIndexOf("/") + 1);
               const targetValue = item.target.value.substring(item.target.value.lastIndexOf("/") + 1);
@@ -697,7 +891,6 @@ d3.selectAll('path.link').each(function() {
     .style('fill', 'yellow'); // Set arrow color
 
   // Set arrows based on direction
-
 if (direction === 'outgoing') {
   link.attr('marker-end', 'url(#arrowhead-outgoing)');
 } else if (direction === 'incoming') {
@@ -747,160 +940,10 @@ d3.selectAll('line').each(function() {
       });
   }
 });
-
-  // Fonction pour calculer l'intersection entre la ligne de liaison et le cercle
-  function calculateDecalage(x1, y1, x2, y2, r) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const dr = Math.sqrt(dx * dx + dy * dy);
-    const sin = dy/dr;
-    const cos = dx/dr;
-
-    const x = (r * cos);
-    const y = (r * sin);
-    return [x, y];
-  }
-
-  // Drag event handler function
-  function dragged(event) {
-      const newX = event.x;
-      const newY = event.y;
-      const nodeId = d3.select(this).attr('nodeId');  // This node is being dragged
-  
-      // Update the dragged circle's position
-      d3.select(`circle[nodeId="${nodeId}"]`).attr('cx', newX).attr('cy', newY);
-      d3.select(`text[nodeId="${nodeId}"]`).attr('x', newX).attr('y', newY);
-      
-      // Update all related elements' positions
-      svg.selectAll('.link').each(function() {
-          const line = d3.select(this);
-          const startId = line.attr('startId');
-          const endId = line.attr('nodeId');
-  
-          // This will determine the correct end to update based on the direction of the link
-          if (startId === nodeId || endId === nodeId) {
-              const otherNodeId = startId === nodeId ? endId : startId;
-              const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
-              const otherCircleX = +otherCircle.attr('cx');
-              const otherCircleY = +otherCircle.attr('cy');
-              const markerStart = line.attr('marker-start');
-              const markerEnd = line.attr('marker-end');
-  
-              if (markerEnd) {
-                if (startId === nodeId) {
-                  line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
-                } else {
-                  line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
-                }
-              } else if (markerStart) {
-                if (startId === nodeId) {
-                  line.attr('d', `M${otherCircleX},${otherCircleY} L${newX},${newY}`);
-                } else {
-                  line.attr('d', `M${newX},${newY} L${otherCircleX},${otherCircleY}`);
-                }
-              }
-  
-              const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
-              line.style('opacity', distance < 100 ? 0 : 1);
-          }
-      });
-  
-      svg.selectAll('.link-text').each(function() {
-          const text = d3.select(this);
-          const startId = text.attr('startId');
-          const endId = text.attr('nodeId');
-  
-          if (startId === nodeId || endId === nodeId) {
-              const otherNodeId = startId === nodeId ? endId : startId;
-              const otherCircle = d3.select(`circle[nodeId="${otherNodeId}"]`);
-              const otherCircleX = +otherCircle.attr('cx');
-              const otherCircleY = +otherCircle.attr('cy');
-  
-              const midX = (newX + otherCircleX) / 2;
-              const midY = (newY + otherCircleY) / 2;
-              text.attr('x', midX).attr('y', midY);
-  
-              const distance = Math.sqrt((newX - otherCircleX) ** 2 + (newY - otherCircleY) ** 2);
-              text.style('opacity', distance < 100 ? 0 : 1);
-          }
-      });
-  
-      // Call updateMainClassRelatedLines to handle specific additional updates
-      updateMainClassRelatedLines(newX, newY, nodeId);
-  }
-  
-  
-  function updateMainClassRelatedLines(newX, newY, nodeId) {
-    d3.selectAll('.link').each(function() {
-        const line = d3.select(this);
-        const startId = line.attr('startId');
-        const endId = line.attr('nodeId');
-        const markerStart = line.attr('marker-start');
-        const markerEnd = line.attr('marker-end');
-
-        let sourceX, sourceY, targetX, targetY;
-
-        if (startId === nodeId) {
-            // if the circle dragging is the start of the line
-            const otherCircle = d3.select(`circle[nodeId="${endId}"]`);
-            sourceX = newX;
-            sourceY = newY;
-            targetX = +otherCircle.attr('cx');
-            targetY = +otherCircle.attr('cy');
-        } else if (endId === nodeId) {
-            // if the circle dragging is the end of the line
-            const otherCircle = d3.select(`circle[nodeId="${startId}"]`);
-            sourceX = +otherCircle.attr('cx');
-            sourceY = +otherCircle.attr('cy');
-            targetX = newX;
-            targetY = newY;
-        } else {
-            // neither start or end,then dont update
-            return;
-        }
-
-        // update the line
-        const intersection = calculateDecalage(sourceX, sourceY, targetX, targetY, 50);
-        if(markerEnd){
-        line.attr('d', `M${sourceX+intersection[0]},${sourceY+intersection[1]} L${targetX-intersection[0]},${targetY-intersection[1]}`)}
-        else if(markerStart){
-          line.attr('d', `M${targetX-intersection[0]},${targetY-intersection[1]} L${sourceX+intersection[0]},${sourceY+intersection[1]}`)
-        }
-
-        //update the text of the line
-        const midX = (sourceX + targetX) / 2;
-        const midY = (sourceY + targetY) / 2;
-        d3.selectAll(`.link-text[startId="${startId}"][nodeId="${endId}"]`)
-          .attr('x', midX)
-          .attr('y', midY);
-    });
 }
 
-  
-
-
-
-  
-
-  // Update the position of the connection line
-  function updateLink(sourceX,sourceY,Intersection) {
-    const targetX = +relatedDisk.select('circle').attr('cx');
-    const targetY = +relatedDisk.select('circle').attr('cy');
-    const linkPath = `M${sourceX + Intersection[0]},${sourceY + Intersection[1]} L${targetX - Intersection[0]},${targetY - Intersection[1]}`;
-    link.attr('d', linkPath);
-
-    // Update the position of the text on the connecting line
-    const midX = (sourceX + targetX) / 2;
-    const midY = (sourceY + targetY) / 2;
-    text.attr('x', midX).attr('y', midY);
-    
-    /*
-    const markerEnd = 'url(#arrowhead-subclass)';
-    link.attr('marker-end', markerEnd); */
-  }}
-
   // Right click event handler function
-  function displayContextMenu(event, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function displayContextMenu(event:any, newNode: $rdf.NamedNode, store: $rdf.Store) {
     event.preventDefault();
     const x = event.clientX;
     const y = event.clientY;
@@ -951,7 +994,7 @@ d3.selectAll('line').each(function() {
   }
 
   // Menu item click handler function
-  function handleMenuItemClick(action, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function handleMenuItemClick(action:any, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log("Menu item clicked:", action);
       if (action === 'expandSubclasses') {
@@ -1036,12 +1079,12 @@ d3.selectAll('line').each(function() {
   }
 }
 
-function checkSubExists(classId) {
+function checkSubExists(classId:any) {
   const clickedNode = $rdf.namedNode(classId);
   const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
   let subExists = true;
 
-  SubClasses.forEach(({ subClass }) => {
+  SubClasses.forEach(({ subClass }:any) => {
       const nodeId = subClass;
       const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
       if (textlink.empty()) {
@@ -1053,12 +1096,12 @@ function checkSubExists(classId) {
 }
 
 
-function checkSubHide(classId) {
+function checkSubHide(classId:any) {
   const clickedNode = $rdf.namedNode(classId);
   const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
   let subHide = false;
 
-  SubClasses.forEach(({ subClass }) => {
+  SubClasses.forEach(({ subClass }:any) => {
       const nodeId = subClass;
       const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
 
@@ -1073,22 +1116,22 @@ function checkSubHide(classId) {
 
   return subHide;
 }
-function hideSubs(classId) {
-  const hiddenNodes = {}; // Used to store hidden node IDs
+function hideSubs(classId:any) {
+  const hiddenNodes: { [key: string]: any } = {};
   hideRelatedSubs(classId);
 
-  function hideRelatedSubs(nodeId) {
+  function hideRelatedSubs(nodeId:any) {
       // Get the connection line information related to the current node
       const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
-      SubClasses.forEach(({ subClass }) => {
+      SubClasses.forEach(({ subClass }:any) => {
           if (!subClass) {
               return;
           }
 
           const connectedNodeId = subClass;
           // If the node is already hidden, skip
-          if (hiddenNodes[connectedNodeId]) {
-              return;
+          if (hiddenNodes[connectedNodeId.toString()]) {
+            return;
           }
           if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
             // hide the link
@@ -1111,7 +1154,7 @@ function hideSubs(classId) {
       });
   }
 
-  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+  function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
     // Get all line elements
     const links = svg.selectAll('.link');
     let otherConnectionsExist = false;
@@ -1129,22 +1172,22 @@ function hideSubs(classId) {
   
 }
 
-function expandHavingSubs(classId) {
-  const expandedNodes = {}; // Used to store expanded node IDs
+function expandHavingSubs(classId:any) {
+  const expandedNodes: { [key: string]: any } = {};      
   expandRelatedSubs(classId);
   
-  function expandRelatedSubs(nodeId) {
+  function expandRelatedSubs(nodeId:any) {
       // Get the connection line information related to the current node
       const SubClasses = rdfHelpers.getSubClasses(store, $rdf.namedNode(nodeId));
       
-      SubClasses.forEach(({ subClass }) => {
+      SubClasses.forEach(({ subClass }:any) => {
         if (!subClass) {
           return;
       }
           const connectedNodeId = subClass;
           // If the node is already expanded, skip
-          if (expandedNodes[connectedNodeId]) {
-              return;
+          if (expandedNodes[connectedNodeId.toString()]) {
+            return;
           }
           // Expand connecting lines
           svg.selectAll(`.link[nodeId="${nodeId}"]`).style('display', 'block');
@@ -1160,11 +1203,11 @@ function expandHavingSubs(classId) {
 
 }
 
-function checkIncomingRelationExists(classId) {
+function checkIncomingRelationExists(classId:any) {
   const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
   let relationExists = true;
 
-  incomingConnectedClasses.forEach(({ target }) => {
+  incomingConnectedClasses.forEach(({ target }:any) => {
       const nodeId = target.value;
       const textlink = svg.selectAll(`.link-text[nodeId="${classId}"][startId="${nodeId}"]`);
       if (textlink.empty()) {
@@ -1175,11 +1218,11 @@ function checkIncomingRelationExists(classId) {
 
   return relationExists;
 }
-function checkIncomingRelationHide(classId) {
+function checkIncomingRelationHide(classId:any) {
   const incomingConnectedClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(classId));
   let relationHide = false;
 
-  incomingConnectedClasses.forEach(({ target }) => {
+  incomingConnectedClasses.forEach(({ target }:any) => {
       const nodeId = target.value;
       console.log(nodeId);
       const textlink = svg.selectAll(`.link[nodeId="${classId}"][startId="${nodeId}"]`);
@@ -1198,20 +1241,20 @@ function checkIncomingRelationHide(classId) {
   return relationHide;
 }
 
-function expandHavingIncomingRelations(classId) {
-  const expandedNodes = {}; // Used to store expanded node IDs
+function expandHavingIncomingRelations(classId:any) {
+  const expandedNodes: { [key: string]: any } = {};
   expandRelatedIncoming(classId);
-  function expandRelatedIncoming(nodeId) {
+  function expandRelatedIncoming(nodeId:any) {
       // Get the connection line information related to the current node
       const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
-      IncomingClasses.forEach(({ target }) => {
+      IncomingClasses.forEach(({ target }:any) => {
         if (!target) {
           return;
       }
           const connectedNodeId = target.value;
           // If the node is already expanded, skip
-          if (expandedNodes[connectedNodeId]) {
-              return;
+          if (expandedNodes[connectedNodeId.toString()]) {
+            return;
           }
           // Expand connecting lines
           svg.selectAll(`.link[startId="${connectedNodeId}"]`).style('display', 'block');
@@ -1222,31 +1265,20 @@ function expandHavingIncomingRelations(classId) {
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
           // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-
-          svg.selectAll('circle').each(function(){
-            const circle = d3.select(this);
-            const nodeId = circle.attr('nodeId');
-    
-            if (circle.style('display') === 'block') {
-              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
-              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
-            }
-          })
       });
-      
   }
   
 }
 
-function hideIncomingRelations(classId) {
-  const hiddenNodes = {}; // Used to store hidden node IDs
+function hideIncomingRelations(classId:any) {
+  const hiddenNodes: { [key: string]: any } = {};
   hideRelatedIncoming(classId);
 
-  function hideRelatedIncoming(nodeId) {
+  function hideRelatedIncoming(nodeId:any) {
       // Get the connection line information related to the current node
       const IncomingClasses = rdfHelpers.getIncomingConnectedClasses(store, $rdf.namedNode(nodeId));
       console.log(IncomingClasses)
-      IncomingClasses.forEach(({ target }) => {
+      IncomingClasses.forEach(({ target }:any) => {
           if (!target) {
               return;
           }
@@ -1254,20 +1286,20 @@ function hideIncomingRelations(classId) {
           const connectedNodeId = target.value;
 
           // If the node is already hidden, skip
-          if (hiddenNodes[connectedNodeId]) {
-              return;
+          if (hiddenNodes[connectedNodeId.toString()]) {
+            return;
           }
 
           if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
             // hide the link
-            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"][marker-start="url(#arrowhead-incoming)"]`).style('display', 'none');
             // hide the text on the link
             svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
           }else {
             // hide the link
-            svg.selectAll(`.link[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link[startId="${connectedNodeId}"][marker-start="url(#arrowhead-incoming)"]`).style('display', 'none');
             // hide the text on the link
-            svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${connectedNodeId}"]`).style('display', 'none');
+            svg.selectAll(`.link-text[startId="${connectedNodeId}"]`).style('display', 'none');
             // hide the circle
             svg.selectAll(`circle[nodeId="${connectedNodeId}"]`).style('display', 'none');
             svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'none');
@@ -1275,20 +1307,10 @@ function hideIncomingRelations(classId) {
             // mark the current node as hided
             hiddenNodes[connectedNodeId] = true;
           }
-
-          svg.selectAll('circle').each(function(){
-            const circle = d3.select(this);
-            const nodeId = circle.attr('nodeId');
-
-            if (circle.style('display') === 'none') {
-              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'none');
-              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'none');
-            }
-          })
       });
   }
 
-  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+  function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
     // Get all line elements
     const links = svg.selectAll('.link');
     let otherConnectionsExist = false;
@@ -1304,11 +1326,11 @@ function hideIncomingRelations(classId) {
 }
 
 }
-function checkOutgoingRelationExists(classId) {
+function checkOutgoingRelationExists(classId:any) {
   const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
   let relationExists = true;
 
-  OutgoingConnectedClasses.forEach(({ target }) => {
+  OutgoingConnectedClasses.forEach(({ target }:any) => {
     if(!target){return ;}
       const nodeId = target.value;
       const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
@@ -1320,11 +1342,11 @@ function checkOutgoingRelationExists(classId) {
 
   return relationExists;
 }
-function checkOutgoingRelationHide(classId) {
+function checkOutgoingRelationHide(classId:any) {
   const OutgoingConnectedClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(classId));
   let relationHide = false;
 
-  OutgoingConnectedClasses.forEach(({ target }) => {
+  OutgoingConnectedClasses.forEach(({ target }:any) => {
     if(!target){return;}
       const nodeId = target.value;
       const textlink = svg.selectAll(`.link-text[nodeId="${nodeId}"][startId="${classId}"]`);
@@ -1340,20 +1362,20 @@ function checkOutgoingRelationHide(classId) {
   return relationHide;
 }
 
-function expandHavingOutgoingRelations(classId) {
-  const expandedNodes = {}; // Used to store expanded node IDs
+function expandHavingOutgoingRelations(classId:any) {
+  const expandedNodes: { [key: string]: any } = {};
   expandRelatedOutgoing(classId);
-  function expandRelatedOutgoing(nodeId) {
+  function expandRelatedOutgoing(nodeId:any) {
       // Get the connection line information related to the current node
       const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-      OutgoingClasses.forEach(({ target }) => {
+      OutgoingClasses.forEach(({ target }:any) => {
         if (!target) {
           return;
       }
           const connectedNodeId = target.value;
           // If the node is already expanded, skip
-          if (expandedNodes[connectedNodeId]) {
-              return;
+          if (expandedNodes[connectedNodeId.toString()]) {
+            return;
           }
           // Expand connecting lines
           svg.selectAll(`.link[nodeId="${connectedNodeId}"]`).style('display', 'block');
@@ -1364,29 +1386,19 @@ function expandHavingOutgoingRelations(classId) {
           svg.selectAll(`text[nodeId="${connectedNodeId}"]`).style('display', 'block');
               // Mark current node as expanded
           expandedNodes[connectedNodeId] = true;
-
-          svg.selectAll('circle').each(function(){
-            const circle = d3.select(this);
-            const nodeId = circle.attr('nodeId');
-    
-            if (circle.style('display') === 'block') {
-              svg.selectAll(`.link[startId="${nodeId}"], .link[nodeId="${nodeId}"]`).style('display', 'block');
-              svg.selectAll(`.link-text[startId="${nodeId}"], .link-text[nodeId="${nodeId}"]`).style('display', 'block');
-            }
-          })
       });
   }
   
 }
 
-function hideOutgoingRelations(classId) {
-  const hiddenNodes = {}; // Used to store hidden node IDs
+function hideOutgoingRelations(classId:any) {
+  const hiddenNodes: { [key: string]: any } = {};
   hideRelatedOutgoing(classId);
 
-  function hideRelatedOutgoing(nodeId) {
+  function hideRelatedOutgoing(nodeId:any) {
       // Get the connection line information related to the current node
       const OutgoingClasses = rdfHelpers.getOutgoingConnectedClasses(store, $rdf.namedNode(nodeId));
-      OutgoingClasses.forEach(({ target }) => {
+      OutgoingClasses.forEach(({ target }:any) => {
           if (!target) {
               return;
           }
@@ -1394,8 +1406,8 @@ function hideOutgoingRelations(classId) {
           const connectedNodeId = target.value;
 
           // If the node is already hidden, skip
-          if (hiddenNodes[connectedNodeId]) {
-              return;
+          if (hiddenNodes[connectedNodeId.toString()]) {
+            return;
           }
 
           if (hasOtherConnectionsExcept(connectedNodeId, nodeId)) {
@@ -1418,7 +1430,7 @@ function hideOutgoingRelations(classId) {
       });
   }
 
-  function hasOtherConnectionsExcept(nodeId, excludeNodeId) {
+  function hasOtherConnectionsExcept(nodeId:any, excludeNodeId:any) {
     // Get all line elements
     const links = svg.selectAll('.link');
     let otherConnectionsExist = false;
@@ -1438,7 +1450,7 @@ function hideOutgoingRelations(classId) {
 
 
   // extended relationship
-  function expandIncomingRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function expandIncomingRelations(svg:any, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log('Expanding relation for:', newNode.value);
       const selectedCircle = svg.select(`circle[nodeId="${newNode.value}"]`);
@@ -1459,7 +1471,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
       let count =0;
 
 
-      incomingConnectedClasses.forEach(({ target, propertyUri }) => {
+      incomingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
         createDiskAndLink(svg, target, propertyUri, 'incoming', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel);
         count=count+1;
       });
@@ -1467,7 +1479,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
       console.error('Error expanding relations:', error);
     }
   }
-  function expandOutgoingRelations(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function expandOutgoingRelations(svg:any, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
       console.log('Expanding relation for:', newNode.value);
       const selectedCircle = svg.select(`circle[nodeId="${newNode.value}"]`);
@@ -1487,7 +1499,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
       let count =0;
 
 
-      OutgoingConnectedClasses.forEach(({ target, propertyUri }) => {
+      OutgoingConnectedClasses.forEach(({ target, propertyUri }: { target: any, propertyUri: string }) => {
         createDiskAndLink(svg, target, propertyUri, 'outgoing', target.value,{ x: circleCX, y: circleCY },  store,mainClassRef,nodeId,count,setStore,setSelectedClassDetails,setAttributeDetails,setShowDataTypeModal,setCurrentClassId,setOutgoingClassId,setOutgoingDetails,setShowOutgoingModal,setIncomingClassId,setIncomingDetails,setShowIncomingModal,setResetBottomPanel);
         count=count+1;
       });
@@ -1498,7 +1510,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
 
 
   // Extend subclass
-  function expandSubclasses(svg, newNode: $rdf.NamedNode, store: $rdf.Store) {
+  function expandSubclasses(svg:any, newNode: $rdf.NamedNode, store: $rdf.Store) {
     try {
         console.log('Expanding relation for:', newNode.value);
         const selectedCircle = svg.select(`circle[nodeId="${newNode.value}"]`);
@@ -1514,7 +1526,7 @@ console.log('圆圈的位置:', circleCX, circleCY);
         console.log(clickedNode);
         const SubClasses = rdfHelpers.getSubClasses(store, clickedNode);
         let count = 0;
-        SubClasses.forEach(({ subClass }) => {
+        SubClasses.forEach(({ subClass }:any) => {
             if (subClass) { // Add checks for target and target.value
                 const lastSlashIndex = subClass.lastIndexOf('/');
                 const target = lastSlashIndex !== -1 ? subClass.substring(lastSlashIndex + 1) : subClass;
@@ -1540,19 +1552,20 @@ function removeSelectedClass(nodeId: string) {
   const relatedLinks = svg.selectAll(`.link[nodeId="${nodeId}"], .link[startId="${nodeId}"]`);
   const relatedTexts = svg.selectAll(`.link-text[nodeId="${nodeId}"], .link-text[startId="${nodeId}"]`);
   const Links = svg.selectAll(`.link[startId="${nodeId}"]`);
-  Links.each(function() {
-    const line = d3.select(this);
-    const lineNodeId = line.attr('nodeId');
-    removeSelectedClass(lineNodeId);})
-
   // Remove selected circles, text, connectors, and text on connectors
   selectedCircle.remove();
   selectedText.remove();
   relatedLinks.remove();
   relatedTexts.remove();
-
+  Links.each(function() {
+    const line = d3.select(this);
+    const lineNodeId = line.attr('nodeId');
+    console.log(lineNodeId)
+    const isConnected = svg.selectAll(`.link[startId="${lineNodeId}"], .link[nodeId="${lineNodeId}"]`).size() > 0;
+    if(!isConnected){
+    removeSelectedClass(lineNodeId);}})
 }
-function addNewSubclass(classId) {
+function addNewSubclass(classId:any) {
   // Create a popup for subclass name input
   const subclassInput = prompt("Enter the name of the new subclass:");
   if (!subclassInput) {
@@ -1561,45 +1574,45 @@ function addNewSubclass(classId) {
   }
 
   const newClassUri = `https://schemaForge.net/pattern/${subclassInput.trim().replace(/\s+/g, '-')}`;
-  rdfHelpers.createClass(store, newClassUri,classId, setStore); // 假设这个函数正确处理创建类和设置其超类
+  rdfHelpers.createClass(store, newClassUri,classId, setStore); 
   expandSubclasses(svg,$rdf.namedNode(classId),store);
 }
-function addNewOutgoingRelation(classId) {
+function addNewOutgoingRelation(classId:any) {
        
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  if (!relationInput){return;}
+  const Comment = prompt("Enter the comment for the new Incoming Relation:");
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
    setOutgoingClassId(classId);
-   setOutgoingDetails({ relation:relationUri });
+   setOutgoingDetails({ relation:relationUri,comment:Comment });
    setShowOutgoingModal(true);
 }
 
 
-function addNewIncomingRelation(classId) {
+function addNewIncomingRelation(classId:any) {
   const relationInput = prompt("Enter the relationship between the new subclass and the original class:");
+  if (!relationInput){return;}
+  const Comment = prompt("Enter the comment for the new Incoming Relation:");
   const relationUri = `https://schemaForge.net/pattern/${relationInput.replace(/\s+/g, '-')}`;
+   // Set the tag and comment status (if needed) and then show the modal with the data type
    setIncomingClassId(classId);
-   setIncomingDetails({ relation:relationUri });
+   setIncomingDetails({ relation:relationUri,comment:Comment });
    setShowIncomingModal(true);
 }
 
 
-function addNewAttribute(classId) {
+function addNewAttribute(classId:any) {
   const attributeLabel = window.prompt("Enter the label of the new attribute:");
   if (!attributeLabel) {
       console.log("Attribute label input is empty.");
       return;
   }
   const attributeComment = window.prompt("Enter the comment for the new attribute:");
-  if (!attributeComment) {
-      console.log("Attribute comment input is empty.");
-      return;
-  }
 
   setCurrentClassId(classId);
   setAttributeDetails({ label: attributeLabel, comment: attributeComment }); 
   setShowDataTypeModal(true);
 }
-
 
 };
 

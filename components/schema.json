@@ -2,7 +2,8 @@
     "schemaName": "",
     "classes": ["c1", "c2", "c3"],
     "properties": ["p1", "p2"],
-    "relations": [{"subject":"s","predicate": "p1", "object":"c2"},
-                  {"subject":"c2", "predicate":"p2",  "object":"c3"}]
-
+    "relations": [
+        {"subject": "c1", "predicate": "p1", "object": "c2"},
+        {"subject": "c2", "predicate": "p2", "object": "c3"}
+    ]
 }

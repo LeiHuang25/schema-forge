@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect } from 'react';
 import * as $rdf from 'rdflib';
-import { getLabelFromURI } from '@/components/rdfHelpers';
+import * as rdfHelpers from '@/components/rdfHelpers';
 
 type DropdownComponentProps = {
   store?: $rdf.IndexedFormula | null;
@@ -24,9 +24,9 @@ const DropdownComponent: FC<DropdownComponentProps> = ({ store, selectedClass, s
     ].map((classTerm) => classTerm as $rdf.NamedNode);
 
     classes.forEach((classNode) => {
-      const labelTerm = store.any(classNode, $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#label"));
-      if (labelTerm && labelTerm.value) {
-        classLabels[classNode.value] = labelTerm.value;
+      const labelTerm = rdfHelpers.getLabelFromURI(store,classNode.value);
+      if (labelTerm) {
+        classLabels[classNode.value] = labelTerm;
       }
     });
 
@@ -34,9 +34,9 @@ const DropdownComponent: FC<DropdownComponentProps> = ({ store, selectedClass, s
       .each(null, $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), $rdf.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"))
       .map((relationTerm) => relationTerm as $rdf.NamedNode);
     relations.forEach((relationNode) => {
-      const labelTerm = store.any(relationNode, $rdf.namedNode("http://www.w3.org/2000/01/rdf-schema#label"));
-      if (labelTerm && labelTerm.value) {
-        relationLabels[relationNode.value] = labelTerm.value;
+      const labelTerm = rdfHelpers.getLabelFromURI(store,relationNode.value);
+      if (labelTerm) {
+        relationLabels[relationNode.value] = labelTerm;
       }
     });
   }
@@ -85,7 +85,7 @@ const DropdownComponent: FC<DropdownComponentProps> = ({ store, selectedClass, s
             key={index}
             style={{ padding: '5px', cursor: 'pointer', backgroundColor: selectedClass === relationNode.value ? '#eee' : 'transparent' }}
           >
-            {getLabelFromURI(store, relationNode.value)}
+            {rdfHelpers.getLabelFromURI(store, relationNode.value)}
           </div>
         ))}
       </div>
